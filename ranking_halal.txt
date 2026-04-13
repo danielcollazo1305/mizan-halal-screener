@@ -1,0 +1,26 @@
+MIZAN HALAL SCREENER
+====================
+
+HALAL RANKING
+-------------
+1. NVIDIA Corporation (NVDA) | Sector: Technology | Price: 183.16 | Debt Ratio: 0.00 | Score: 99.87 | Status: Halal
+2. Tesla, Inc. (TSLA) | Sector: Consumer Cyclical | Price: 345.745 | Debt Ratio: 0.01 | Score: 99.43 | Status: Halal
+3. Apple Inc. (AAPL) | Sector: Technology | Price: 258.85 | Debt Ratio: 0.02 | Score: 98.81 | Status: Halal
+4. Microsoft Corporation (MSFT) | Sector: Technology | Price: 371.405 | Debt Ratio: 0.04 | Score: 97.77 | Status: Halal
+5. Exxon Mobil Corporation (XOM) | Sector: Energy | Price: 154.86 | Debt Ratio: 0.08 | Score: 96.09 | Status: Halal
+6. The Coca-Cola Company (KO) | Sector: Consumer Defensive | Price: 78.015 | Debt Ratio: 0.14 | Score: 92.87 | Status: Halal
+7. McDonald's Corporation (MCD) | Sector: Consumer Cyclical | Price: 310.0496 | Debt Ratio: 0.25 | Score: 87.61 | Status: Halal
+
+QUESTIONABLE RANKING
+--------------------
+
+HARAM RANKING
+-------------
+1. JPMorgan Chase & Co. (JPM) | Sector: Financial Services | Price: 310.18 | Debt Ratio: 1.23 | Score: 0 | Status: Not Halal
+
+SUMMARY
+-------
+Total companies analyzed: 8
+Halal companies: 7
+Questionable companies: 0
+Haram companies: 1

@@ -1,0 +1,4 @@
+Company: apple
+Status: Halal
+Reason: Company passed screening
+----------------
