@@ -16,7 +16,7 @@ import argparse
 import logging
 import sys
 from colorama import Fore, Style, init
-
+ 
 from app.market_data import get_stock_data
 from app.halal_filter import classify_company
 
