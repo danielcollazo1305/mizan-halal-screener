@@ -4,148 +4,89 @@ fair_value.py
 Calculates the intrinsic (fair) value of a stock using two methods:
 
 1. Benjamin Graham Formula: √(22.5 × EPS × Book Value)
-   - Classic, conservative, great for stable companies
-
-2. Simplified DCF (Discounted Cash Flow):
-   - Projects Free Cash Flow over 10 years
-   - Discounts by estimated WACC (10%)
-   - Adds terminal value
-
-Returns fair value, upside/downside %, and valuation label.
+2. Simplified DCF (Discounted Cash Flow) per share
 """
 
 import math
 
-# ── DCF Constants ─────────────────────────────────────────────────────────────
-DCF_GROWTH_RATE_DEFAULT = 0.08   # assumed growth if no data (8%)
-DCF_TERMINAL_GROWTH     = 0.03   # perpetual growth rate (3%)
-DCF_DISCOUNT_RATE       = 0.10   # estimated WACC (10%)
-DCF_YEARS               = 10     # projection years
-MARGIN_OF_SAFETY        = 0.20   # 20% margin of safety (Graham principle)
+DCF_TERMINAL_GROWTH  = 0.03
+DCF_DISCOUNT_RATE    = 0.10
+DCF_YEARS            = 10
+MARGIN_OF_SAFETY     = 0.20
 
-
-# ── Graham Formula ────────────────────────────────────────────────────────────
 
 def graham_fair_value(eps: float, book_value: float) -> float | None:
-    """
-    Benjamin Graham intrinsic value formula:
-      Fair Value = √(22.5 × EPS × Book Value per Share)
-
-    Returns None if data is insufficient or invalid.
-    """
-    if not eps or not book_value:
+    if not eps or not book_value or eps <= 0 or book_value <= 0:
         return None
-    if eps <= 0 or book_value <= 0:
-        return None
+    return round(math.sqrt(22.5 * eps * book_value), 2)
 
-    value = 22.5 * eps * book_value
-    return round(math.sqrt(value), 2)
-
-
-# ── DCF Formula ───────────────────────────────────────────────────────────────
 
 def dcf_fair_value(
     free_cash_flow: float,
-    market_cap: float,
+    shares_outstanding: float,
     revenue_growth: float = 0.0,
     earnings_growth: float = 0.0,
 ) -> float | None:
     """
-    Simplified DCF based on projected Free Cash Flow per share.
-
-    Returns None if data is insufficient or invalid.
+    DCF per share — uses FCF per share instead of total FCF.
+    This avoids the inflated values caused by dividing total FCF by market cap.
     """
-    if not free_cash_flow or not market_cap:
+    if not free_cash_flow or not shares_outstanding:
         return None
-    if free_cash_flow <= 0 or market_cap <= 0:
+    if free_cash_flow <= 0 or shares_outstanding <= 0:
         return None
 
-    # Estimate growth — average of revenue and earnings growth
+    # FCF per share
+    fcf_per_share = free_cash_flow / shares_outstanding
+
+    # Growth rate
     growth = (revenue_growth + earnings_growth) / 2 if (
         revenue_growth and earnings_growth
-    ) else DCF_GROWTH_RATE_DEFAULT
-
-    # Cap growth between terminal rate and 25%
+    ) else 0.08
     growth = max(DCF_TERMINAL_GROWTH, min(0.25, growth))
 
-    # Project FCF and discount each year
+    # Project FCF per share and discount
     total_pv = 0.0
-    fcf = free_cash_flow
+    fcf = fcf_per_share
     for year in range(1, DCF_YEARS + 1):
         fcf *= (1 + growth)
-        pv = fcf / ((1 + DCF_DISCOUNT_RATE) ** year)
-        total_pv += pv
+        total_pv += fcf / ((1 + DCF_DISCOUNT_RATE) ** year)
 
-    # Terminal value (Gordon Growth Model)
-    terminal_fcf   = fcf * (1 + DCF_TERMINAL_GROWTH)
-    terminal_value = terminal_fcf / (DCF_DISCOUNT_RATE - DCF_TERMINAL_GROWTH)
+    # Terminal value
+    terminal_value = (fcf * (1 + DCF_TERMINAL_GROWTH)) / (DCF_DISCOUNT_RATE - DCF_TERMINAL_GROWTH)
     terminal_pv    = terminal_value / ((1 + DCF_DISCOUNT_RATE) ** DCF_YEARS)
 
-    intrinsic_value = total_pv + terminal_pv
+    return round(total_pv + terminal_pv, 2)
 
-    # Convert to price per share using FCF/MarketCap ratio
-    shares_ratio = free_cash_flow / market_cap
-    if shares_ratio <= 0:
-        return None
-
-    return round(intrinsic_value * shares_ratio, 2)
-
-
-# ── Valuation label ───────────────────────────────────────────────────────────
 
 def _valuation_label(upside: float) -> str:
-    """Returns a human-readable valuation label based on upside %."""
-    if upside > 40:
-        return "STRONGLY UNDERVALUED"
-    if upside > 20:
-        return "UNDERVALUED"
-    if upside > 0:
-        return "FAIRLY VALUED"
-    if upside > -20:
-        return "OVERVALUED"
+    if upside > 40:  return "STRONGLY UNDERVALUED"
+    if upside > 20:  return "UNDERVALUED"
+    if upside > 0:   return "FAIRLY VALUED"
+    if upside > -20: return "OVERVALUED"
     return "STRONGLY OVERVALUED"
 
 
-# ── Main calculator ───────────────────────────────────────────────────────────
-
 def calculate_fair_value(data: dict) -> dict:
-    """
-    Calculates fair value using Graham and DCF methods.
-
-    Args:
-        data: Company data dict from market_data.get_stock_data()
-
-    Returns:
-        Dict with keys:
-          - graham_value:    float | None
-          - dcf_value:       float | None
-          - avg_fair_value:  float | None  (average of available methods)
-          - safe_value:      float | None  (avg with 20% margin of safety)
-          - upside_pct:      float | None  (% upside from current price)
-          - valuation:       str           (label)
-          - methods_used:    list[str]     (which methods had enough data)
-    """
-    price          = data.get("price")        or 0
-    eps            = data.get("eps")          or 0
-    book_value     = data.get("book_value")   or 0
-    free_cash_flow = data.get("free_cash_flow") or 0
-    market_cap     = data.get("market_cap")   or 0
-    revenue_growth = data.get("revenue_growth") or 0
-    earnings_growth= data.get("earnings_growth") or 0
+    price              = data.get("price") or 0
+    eps                = data.get("eps") or 0
+    book_value         = data.get("book_value") or 0
+    free_cash_flow     = data.get("free_cash_flow") or 0
+    shares_outstanding = data.get("shares_outstanding") or 0
+    revenue_growth     = data.get("revenue_growth") or 0
+    earnings_growth    = data.get("earnings_growth") or 0
 
     graham = graham_fair_value(eps, book_value)
     dcf    = dcf_fair_value(
-        free_cash_flow, market_cap,
+        free_cash_flow, shares_outstanding,
         revenue_growth, earnings_growth
     )
 
-    # Average of available methods
-    available     = [v for v in [graham, dcf] if v is not None]
-    methods_used  = (["graham"] if graham else []) + (["dcf"] if dcf else [])
-    avg_fair      = round(sum(available) / len(available), 2) if available else None
-    safe_value    = round(avg_fair * (1 - MARGIN_OF_SAFETY), 2) if avg_fair else None
+    available    = [v for v in [graham, dcf] if v is not None]
+    methods_used = (["graham"] if graham else []) + (["dcf"] if dcf else [])
+    avg_fair     = round(sum(available) / len(available), 2) if available else None
+    safe_value   = round(avg_fair * (1 - MARGIN_OF_SAFETY), 2) if avg_fair else None
 
-    # Upside = (fair value - current price) / current price × 100
     upside = None
     if avg_fair and price > 0:
         upside = round((avg_fair - price) / price * 100, 1)
