@@ -2,6 +2,7 @@ import { useState } from "react"
 import axios from "axios"
 import Portfolio from "./Portfolio"
 import Ranking from "./Ranking"
+import Recommendations from "./Recommendations"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts"
 
 const API = "https://web-production-b5851.up.railway.app"
@@ -60,10 +61,7 @@ function Screener() {
           placeholder="Enter ticker (e.g. AAPL, MSFT, NVDA)"
           style={{ flex: 1, padding: "12px 16px", borderRadius: 8, border: "1px solid #334155", background: "#1e293b", color: "#f1f5f9", fontSize: 16 }}
         />
-        <button
-          onClick={() => analyze()}
-          style={{ padding: "12px 24px", borderRadius: 8, background: "#22c55e", color: "#fff", border: "none", fontWeight: 700, fontSize: 16, cursor: "pointer" }}
-        >
+        <button onClick={() => analyze()} style={{ padding: "12px 24px", borderRadius: 8, background: "#22c55e", color: "#fff", border: "none", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
           {loading ? "..." : "Analyze"}
         </button>
       </div>
@@ -83,7 +81,6 @@ function Screener() {
                 <div style={{ color: statusColor[result.status], fontWeight: 700, fontSize: 18 }}>{result.status}</div>
               </div>
             </div>
-
             <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
               {[
                 { label: "Grade", value: result.grade, color: "#22c55e" },
@@ -174,12 +171,14 @@ export default function App() {
         <div style={{ display: "flex", gap: 8 }}>
           <button style={navStyle("screener")} onClick={() => setPage("screener")}>Screener</button>
           <button style={navStyle("ranking")} onClick={() => setPage("ranking")}>Ranking</button>
+          <button style={navStyle("picks")} onClick={() => setPage("picks")}>⭐ Monthly Picks</button>
           <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>Portfolio</button>
         </div>
       </div>
 
       {page === "screener"  && <Screener />}
       {page === "ranking"   && <Ranking />}
+      {page === "picks"     && <Recommendations />}
       {page === "portfolio" && <Portfolio />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
