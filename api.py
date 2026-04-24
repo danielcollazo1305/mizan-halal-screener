@@ -28,6 +28,7 @@ from app.halal_filter import classify_company
 from app.fair_value import calculate_fair_value
 from app.scorer import score_company
 from app.database import get_db, Portfolio, User, create_tables
+from app.alerts import check_alerts
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
@@ -349,3 +350,17 @@ def remove_from_portfolio(item_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"message": f"✅ {item.ticker} removed from portfolio!"}
+
+# ── Alerts ────────────────────────────────────────────────────────────────────
+
+@app.get("/alerts/{user_id}", tags=["Alerts"])
+def get_alerts(user_id: int):
+    """
+    Returns triggered price alerts for a user's watchlist.
+    """
+    alerts = check_alerts(user_id)
+    return {
+        "user_id":      user_id,
+        "total_alerts": len(alerts),
+        "alerts":       alerts,
+    }
