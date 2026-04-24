@@ -29,6 +29,7 @@ from app.fair_value import calculate_fair_value
 from app.scorer import score_company
 from app.database import get_db, Portfolio, User, create_tables
 from app.alerts import check_alerts
+from app.recommendations import get_monthly_recommendations
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
@@ -364,3 +365,16 @@ def get_alerts(user_id: int):
         "total_alerts": len(alerts),
         "alerts":       alerts,
     }
+
+# ── Recommendations ───────────────────────────────────────────────────────────
+
+@app.get("/recommendations", tags=["Recommendations"])
+def monthly_recommendations(
+    top_n: int = Query(default=3, description="Number of recommendations (default: 3)")
+):
+    """
+    Returns the top halal stock picks for the current month.
+    Ranked by Investment Score (fundamentals + fair value upside).
+    """
+    result = get_monthly_recommendations(top_n=top_n)
+    return result
