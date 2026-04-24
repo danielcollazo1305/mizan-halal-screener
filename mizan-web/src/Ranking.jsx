@@ -36,28 +36,21 @@ export default function Ranking() {
 
   const tabs = ["HALAL", "QUESTIONABLE", "HARAM"]
   const tabColor = { HALAL: "#22c55e", QUESTIONABLE: "#f59e0b", HARAM: "#ef4444" }
-
-  const companies = data
-    ? (data[tab.toLowerCase()] || data[tab] || [])
-    : []
+  const companies = data ? (data[tab.toLowerCase()] || data[tab] || []) : []
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px", color: "#f1f5f9", fontFamily: "sans-serif" }}>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <h2 style={{ color: "#22c55e", margin: 0 }}>🏆 Halal Stock Ranking</h2>
-        <button
-          onClick={fetchRanking}
-          style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#1e293b", color: "#94a3b8", cursor: "pointer", fontSize: 13 }}
-        >
+        <button onClick={fetchRanking} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#1e293b", color: "#94a3b8", cursor: "pointer", fontSize: 13 }}>
           🔄 Refresh
         </button>
       </div>
       <p style={{ color: "#94a3b8", marginBottom: 24, fontSize: 14 }}>
-        Ranked by Investment Score — fundamentals + fair value upside
+        Ranked by Investment Score — fundamentals + potential upside based on fair value
       </p>
 
-      {/* Summary */}
       {data && (
         <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
           {[
@@ -74,35 +67,25 @@ export default function Ranking() {
         </div>
       )}
 
-      {/* Tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         {tabs.map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: "8px 20px", borderRadius: 8, border: "none", cursor: "pointer",
-              background: tab === t ? tabColor[t] : "#1e293b",
-              color: tab === t ? "#fff" : "#94a3b8",
-              fontWeight: 600, fontSize: 14,
-            }}
-          >
-            {t}
-          </button>
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: "8px 20px", borderRadius: 8, border: "none", cursor: "pointer",
+            background: tab === t ? tabColor[t] : "#1e293b",
+            color: tab === t ? "#fff" : "#94a3b8",
+            fontWeight: 600, fontSize: 14,
+          }}>{t}</button>
         ))}
       </div>
 
-      {/* Loading */}
       {loading && (
         <div style={{ textAlign: "center", padding: 40 }}>
           <p style={{ color: "#94a3b8" }}>⏳ Analyzing stocks in real time... This may take 30-60 seconds.</p>
         </div>
       )}
 
-      {/* Error */}
       {error && <p style={{ color: "#ef4444", textAlign: "center" }}>{error}</p>}
 
-      {/* List */}
       {!loading && companies.map((company, i) => (
         <div key={company.ticker} style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -127,7 +110,7 @@ export default function Ranking() {
             <span>📊 Fundamental: {company.fundamental_score}</span>
             {company.fair_value?.upside_pct != null && (
               <span style={{ color: company.fair_value.upside_pct > 0 ? "#22c55e" : "#ef4444" }}>
-                {company.fair_value.upside_pct > 0 ? "▲" : "▼"} {Math.abs(company.fair_value.upside_pct).toFixed(1)}% upside
+                {company.fair_value.upside_pct > 0 ? "▲" : "▼"} {Math.abs(company.fair_value.upside_pct).toFixed(1)}% potential upside (fair value)
               </span>
             )}
           </div>
@@ -139,7 +122,7 @@ export default function Ranking() {
       )}
 
       <p style={{ color: "#475569", fontSize: 12, textAlign: "center", marginTop: 24 }}>
-        ⚠️ Rankings are based on financial models. Not financial advice. Do your own research.
+        ⚠️ Potential upside is based on Graham & DCF fair value models. Not financial advice. Do your own research.
       </p>
     </div>
   )

@@ -85,16 +85,16 @@ function Screener() {
               {[
                 { label: "Grade", value: result.grade, color: "#22c55e" },
                 { label: "Investment Score", value: result.investment_score },
-                { label: "Upside (est.)", value: `${result.fair_value?.upside_pct > 0 ? "+" : ""}${result.fair_value?.upside_pct?.toFixed(1)}%`, color: result.fair_value?.upside_pct > 0 ? "#22c55e" : "#ef4444" },
+                { label: "Potential Upside (fair value)", value: `${result.fair_value?.upside_pct > 0 ? "+" : ""}${result.fair_value?.upside_pct?.toFixed(1)}%`, color: result.fair_value?.upside_pct > 0 ? "#22c55e" : "#ef4444" },
               ].map(item => (
                 <div key={item.label} style={{ flex: 1, background: "#0f172a", borderRadius: 8, padding: 16, textAlign: "center" }}>
                   <div style={{ fontSize: 32, fontWeight: 700, color: item.color || "#f1f5f9" }}>{item.value}</div>
-                  <div style={{ color: "#94a3b8", fontSize: 13 }}>{item.label}</div>
+                  <div style={{ color: "#94a3b8", fontSize: 11 }}>{item.label}</div>
                 </div>
               ))}
             </div>
             <p style={{ color: "#475569", fontSize: 12, textAlign: "center", margin: "8px 0 0" }}>
-              ⚠️ Upside is an estimate based on Graham & DCF models. Not financial advice.
+              ⚠️ Potential upside is based on Graham & DCF fair value models. Not financial advice.
             </p>
           </div>
 
