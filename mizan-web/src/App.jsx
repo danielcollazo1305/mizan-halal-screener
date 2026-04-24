@@ -1,6 +1,7 @@
 import { useState } from "react"
 import axios from "axios"
 import Portfolio from "./Portfolio"
+import Ranking from "./Ranking"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts"
 
 const API = "https://web-production-b5851.up.railway.app"
@@ -45,15 +46,12 @@ function Screener() {
 
   const statusColor = { HALAL: "#22c55e", QUESTIONABLE: "#f59e0b", HARAM: "#ef4444" }
   const periods = ["1mo", "3mo", "6mo", "1y", "2y"]
-
   const chartColor = history.length > 1
     ? history[history.length - 1].close >= history[0].close ? "#22c55e" : "#ef4444"
     : "#22c55e"
 
   return (
     <div style={{ maxWidth: 750, margin: "0 auto", padding: "40px 20px" }}>
-
-      {/* Search */}
       <div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
         <input
           value={ticker}
@@ -74,7 +72,6 @@ function Screener() {
 
       {result && (
         <div>
-          {/* Company header */}
           <div style={{ background: "#1e293b", borderRadius: 12, padding: 24, marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
@@ -87,7 +84,6 @@ function Screener() {
               </div>
             </div>
 
-            {/* Grade + Score + Upside */}
             <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
               {[
                 { label: "Grade", value: result.grade, color: "#22c55e" },
@@ -100,30 +96,22 @@ function Screener() {
                 </div>
               ))}
             </div>
-
             <p style={{ color: "#475569", fontSize: 12, textAlign: "center", margin: "8px 0 0" }}>
               ⚠️ Upside is an estimate based on Graham & DCF models. Not financial advice.
             </p>
           </div>
 
-          {/* Price History Chart */}
           {history.length > 0 && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <div style={{ fontWeight: 600 }}>Price History</div>
                 <div style={{ display: "flex", gap: 6 }}>
                   {periods.map(p => (
-                    <button
-                      key={p}
-                      onClick={() => changePeriod(p)}
-                      style={{
-                        padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
-                        background: period === p ? chartColor : "#0f172a",
-                        color: period === p ? "#fff" : "#94a3b8",
-                      }}
-                    >
-                      {p}
-                    </button>
+                    <button key={p} onClick={() => changePeriod(p)} style={{
+                      padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
+                      background: period === p ? chartColor : "#0f172a",
+                      color: period === p ? "#fff" : "#94a3b8",
+                    }}>{p}</button>
                   ))}
                 </div>
               </div>
@@ -136,22 +124,15 @@ function Screener() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }}
-                    tickFormatter={d => d.slice(5)} interval="preserveStartEnd" />
-                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }}
-                    domain={["auto", "auto"]} tickFormatter={v => `$${v}`} />
-                  <Tooltip
-                    contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }}
-                    labelStyle={{ color: "#94a3b8" }}
-                    formatter={v => [`$${v.toFixed(2)}`, "Price"]}
-                  />
+                  <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={d => d.slice(5)} interval="preserveStartEnd" />
+                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} domain={["auto", "auto"]} tickFormatter={v => `$${v}`} />
+                  <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }} labelStyle={{ color: "#94a3b8" }} formatter={v => [`$${v.toFixed(2)}`, "Price"]} />
                   <Area type="monotone" dataKey="close" stroke={chartColor} fill="url(#colorPrice)" strokeWidth={2} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
 
-          {/* Fair Value */}
           {result.fair_value && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
               <div style={{ fontWeight: 600, marginBottom: 10 }}>Fair Value</div>
@@ -163,7 +144,6 @@ function Screener() {
             </div>
           )}
 
-          {/* Halal Status */}
           <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Halal Status</div>
             <p style={{ margin: 0, color: "#94a3b8" }}>{result.reason}</p>
@@ -193,11 +173,13 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button style={navStyle("screener")} onClick={() => setPage("screener")}>Screener</button>
+          <button style={navStyle("ranking")} onClick={() => setPage("ranking")}>Ranking</button>
           <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>Portfolio</button>
         </div>
       </div>
 
-      {page === "screener" && <Screener />}
+      {page === "screener"  && <Screener />}
+      {page === "ranking"   && <Ranking />}
       {page === "portfolio" && <Portfolio />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
