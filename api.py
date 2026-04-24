@@ -11,8 +11,12 @@ Endpoints:
   GET  /history?ticker=AAPL           → price history for charts
   POST /portfolio/add                 → add stock to portfolio
   GET  /portfolio/{user_id}           → view portfolio
-  GET  /portfolio/{user_id}/value     → portfolio value vs invested
   DELETE /portfolio/{item_id}         → remove stock from portfolio
+  GET  /alerts/{user_id}              → price alerts
+  GET  /recommendations               → monthly picks
+  GET  /company/{ticker}              → company profile (FMP)
+  GET  /financials/{ticker}           → historical financials (FMP)
+  GET  /dividends/{ticker}            → dividend history (FMP)
 """
 
 import time
@@ -30,6 +34,7 @@ from app.scorer import score_company
 from app.database import get_db, Portfolio, User, create_tables
 from app.alerts import check_alerts
 from app.recommendations import get_monthly_recommendations
+from app.fmp_data import get_company_profile, get_income_statement, get_key_metrics, get_dividends
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
@@ -121,6 +126,9 @@ def _build_company(ticker: str) -> dict | None:
         "revenue_growth": data.get("revenue_growth"),
         "earnings_growth":data.get("earnings_growth"),
         "dividend_yield": data.get("dividend_yield"),
+        "eps":            data.get("eps"),
+        "book_value":     data.get("book_value"),
+        "target_price":   data.get("target_price"),
         "status":       status,
         "reason":       halal_result.get("reason"),
         "reasons":      halal_result.get("reasons", []),
@@ -151,7 +159,8 @@ def home():
         "version":   "3.0.0",
         "endpoints": [
             "/analyze", "/ranking", "/fair-value",
-            "/history", "/portfolio"
+            "/history", "/portfolio", "/alerts",
+            "/recommendations", "/company", "/financials", "/dividends"
         ],
         "docs": "/docs",
     }
@@ -248,15 +257,11 @@ def add_to_portfolio(
     request: PortfolioAddRequest,
     db: Session = Depends(get_db)
 ):
-    """Adds a stock to the user's portfolio."""
     ticker = request.ticker.strip().upper()
-
-    # Validate ticker
     data = get_stock_data(ticker)
     if not data.get("available"):
         raise HTTPException(status_code=404, detail=f"Invalid ticker '{ticker}'.")
 
-    # Get halal status
     halal_result = classify_company(
         sector        = data.get("sector", ""),
         debt_ratio    = (data.get("debt") or 0) / (data.get("market_cap") or 1),
@@ -292,7 +297,6 @@ def add_to_portfolio(
 
 @app.get("/portfolio/{user_id}", tags=["Portfolio"])
 def get_portfolio(user_id: int, db: Session = Depends(get_db)):
-    """Returns all stocks in the user's portfolio with current value."""
     items = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
     if not items:
         return {"portfolio": [], "summary": {"total_invested": 0, "total_value": 0, "return_pct": 0}}
@@ -344,7 +348,6 @@ def get_portfolio(user_id: int, db: Session = Depends(get_db)):
 
 @app.delete("/portfolio/{item_id}", tags=["Portfolio"])
 def remove_from_portfolio(item_id: int, db: Session = Depends(get_db)):
-    """Removes a stock from the portfolio."""
     item = db.query(Portfolio).filter(Portfolio.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail=f"Portfolio item {item_id} not found.")
@@ -352,13 +355,11 @@ def remove_from_portfolio(item_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": f"✅ {item.ticker} removed from portfolio!"}
 
+
 # ── Alerts ────────────────────────────────────────────────────────────────────
 
 @app.get("/alerts/{user_id}", tags=["Alerts"])
 def get_alerts(user_id: int):
-    """
-    Returns triggered price alerts for a user's watchlist.
-    """
     alerts = check_alerts(user_id)
     return {
         "user_id":      user_id,
@@ -366,15 +367,45 @@ def get_alerts(user_id: int):
         "alerts":       alerts,
     }
 
+
 # ── Recommendations ───────────────────────────────────────────────────────────
 
 @app.get("/recommendations", tags=["Recommendations"])
 def monthly_recommendations(
     top_n: int = Query(default=3, description="Number of recommendations (default: 3)")
 ):
-    """
-    Returns the top halal stock picks for the current month.
-    Ranked by Investment Score (fundamentals + fair value upside).
-    """
     result = get_monthly_recommendations(top_n=top_n)
     return result
+
+
+# ── Company (FMP) ─────────────────────────────────────────────────────────────
+
+@app.get("/company/{ticker}", tags=["Company"])
+def company_profile(ticker: str):
+    """Returns full company profile from FMP."""
+    profile = get_company_profile(ticker.upper())
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"No profile for '{ticker.upper()}'.")
+    return profile
+
+
+@app.get("/financials/{ticker}", tags=["Company"])
+def company_financials(ticker: str):
+    """Returns historical income statements and key metrics."""
+    income  = get_income_statement(ticker.upper())
+    metrics = get_key_metrics(ticker.upper())
+    return {
+        "ticker":  ticker.upper(),
+        "income":  income,
+        "metrics": metrics,
+    }
+
+
+@app.get("/dividends/{ticker}", tags=["Company"])
+def company_dividends(ticker: str):
+    """Returns dividend history."""
+    dividends = get_dividends(ticker.upper())
+    return {
+        "ticker":    ticker.upper(),
+        "dividends": dividends,
+    }

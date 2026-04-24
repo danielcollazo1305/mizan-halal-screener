@@ -51,6 +51,25 @@ function Screener() {
     ? history[history.length - 1].close >= history[0].close ? "#22c55e" : "#ef4444"
     : "#22c55e"
 
+  const fmt = (v, type = "pct") => {
+    if (v == null) return "N/A"
+    if (type === "pct") return `${(v * 100).toFixed(1)}%`
+    if (type === "x") return `${v.toFixed(1)}x`
+    if (type === "num") return v.toFixed(2)
+    return v
+  }
+
+  const fundamentals = result ? [
+    { label: "ROE", value: fmt(result.roe), hint: "Return on Equity" },
+    { label: "Profit Margin", value: fmt(result.profit_margin), hint: "Net profit margin" },
+    { label: "P/E Ratio", value: result.pe_ratio ? result.pe_ratio.toFixed(1) : "N/A", hint: "Price / Earnings" },
+    { label: "P/B Ratio", value: result.pb_ratio ? result.pb_ratio.toFixed(1) : "N/A", hint: "Price / Book Value" },
+    { label: "Revenue Growth", value: fmt(result.revenue_growth), hint: "YoY revenue growth" },
+    { label: "Earnings Growth", value: fmt(result.earnings_growth), hint: "YoY earnings growth" },
+    { label: "Debt Ratio", value: result.debt_ratio ? `${(result.debt_ratio * 100).toFixed(1)}%` : "N/A", hint: "Debt / Market Cap" },
+    { label: "Dividend Yield", value: fmt(result.dividend_yield), hint: "Annual dividend yield" },
+  ] : []
+
   return (
     <div style={{ maxWidth: 750, margin: "0 auto", padding: "40px 20px" }}>
       <div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
@@ -70,6 +89,7 @@ function Screener() {
 
       {result && (
         <div>
+          {/* Header */}
           <div style={{ background: "#1e293b", borderRadius: 12, padding: 24, marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
@@ -98,6 +118,7 @@ function Screener() {
             </p>
           </div>
 
+          {/* Price History */}
           {history.length > 0 && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -130,6 +151,23 @@ function Screener() {
             </div>
           )}
 
+          {/* Fundamentals */}
+          <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, marginBottom: 16 }}>📊 Key Fundamentals</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {fundamentals.map(item => (
+                <div key={item.label} style={{ background: "#0f172a", borderRadius: 8, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{item.label}</div>
+                    <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{item.hint}</div>
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#22c55e" }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Fair Value */}
           {result.fair_value && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
               <div style={{ fontWeight: 600, marginBottom: 10 }}>Fair Value</div>
@@ -141,6 +179,7 @@ function Screener() {
             </div>
           )}
 
+          {/* Halal Status */}
           <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Halal Status</div>
             <p style={{ margin: 0, color: "#94a3b8" }}>{result.reason}</p>
