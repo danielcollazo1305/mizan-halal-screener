@@ -4,6 +4,7 @@ import Portfolio from "./Portfolio"
 import Ranking from "./Ranking"
 import Recommendations from "./Recommendations"
 import Compare from "./Compare"
+import Watchlist from "./Watchlist"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts"
 
 const API = "https://web-production-b5851.up.railway.app"
@@ -352,10 +353,10 @@ export default function App() {
   const [page, setPage] = useState("screener")
 
   const navStyle = (p) => ({
-    padding: "8px 20px", borderRadius: 8, border: "none",
+    padding: "8px 16px", borderRadius: 8, border: "none",
     background: page === p ? "#22c55e" : "transparent",
     color: page === p ? "#fff" : "#94a3b8",
-    fontWeight: 600, cursor: "pointer", fontSize: 15,
+    fontWeight: 600, cursor: "pointer", fontSize: 14,
   })
 
   return (
@@ -365,12 +366,13 @@ export default function App() {
           <span style={{ fontSize: 22, fontWeight: 700, color: "#22c55e" }}>🕌 Mizan</span>
           <span style={{ color: "#94a3b8", marginLeft: 8, fontSize: 14 }}>Halal Stock Screener</span>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 6 }}>
           <button style={navStyle("screener")} onClick={() => setPage("screener")}>Screener</button>
           <button style={navStyle("ranking")} onClick={() => setPage("ranking")}>Ranking</button>
-          <button style={navStyle("picks")} onClick={() => setPage("picks")}>⭐ Monthly Picks</button>
+          <button style={navStyle("picks")} onClick={() => setPage("picks")}>⭐ Picks</button>
           <button style={navStyle("compare")} onClick={() => setPage("compare")}>⚖️ Compare</button>
-          <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>Portfolio</button>
+          <button style={navStyle("watchlist")} onClick={() => setPage("watchlist")}>🔔 Alerts</button>
+          <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>💼 Portfolio</button>
         </div>
       </div>
 
@@ -378,6 +380,7 @@ export default function App() {
       {page === "ranking"   && <Ranking />}
       {page === "picks"     && <Recommendations />}
       {page === "compare"   && <Compare />}
+      {page === "watchlist" && <Watchlist />}
       {page === "portfolio" && <Portfolio />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
