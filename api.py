@@ -2,21 +2,6 @@
 api.py
 ------
 Mizan Halal Screener — REST API built with FastAPI.
-
-Endpoints:
-  GET  /                              → health check
-  GET  /analyze?ticker=AAPL           → analyze a single stock
-  GET  /ranking                       → full halal ranking
-  GET  /fair-value?ticker=AAPL        → fair value calculation
-  GET  /history?ticker=AAPL           → price history for charts
-  POST /portfolio/add                 → add stock to portfolio
-  GET  /portfolio/{user_id}           → view portfolio
-  DELETE /portfolio/{item_id}         → remove stock from portfolio
-  GET  /alerts/{user_id}              → price alerts
-  GET  /recommendations               → monthly picks
-  GET  /company/{ticker}              → company profile (FMP)
-  GET  /financials/{ticker}           → historical financials (FMP)
-  GET  /dividends/{ticker}            → dividend history (FMP)
 """
 
 import time
@@ -31,17 +16,15 @@ from app.market_data import get_stock_data, get_price_history
 from app.halal_filter import classify_company
 from app.fair_value import calculate_fair_value
 from app.scorer import score_company
-from app.database import get_db, Portfolio, User, create_tables
+from app.database import get_db, Portfolio, Watchlist, create_tables
 from app.alerts import check_alerts
 from app.recommendations import get_monthly_recommendations
 from app.fmp_data import get_company_profile, get_income_statement, get_key_metrics, get_dividends
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
-# ── Create tables on startup ──────────────────────────────────────────────────
 create_tables()
 
-# ── Tickers ───────────────────────────────────────────────────────────────────
 TICKERS: list[str] = [
     "AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "AVGO",
     "JNJ", "WMT", "UNH", "V", "MA", "PG", "HD", "XOM", "LLY", "MRK",
@@ -51,14 +34,10 @@ TICKERS: list[str] = [
     "BKNG", "PYPL", "INTU", "AMGN", "GE", "CAT", "DE", "HON", "UNP",
 ]
 
-# ── App setup ─────────────────────────────────────────────────────────────────
 app = FastAPI(
     title       = "Mizan Halal API",
-    description = (
-        "Screens global stocks for halal compliance using AAOIFI standards. "
-        "Returns halal status, fundamental score, fair value and investment grade."
-    ),
-    version     = "3.0.0",
+    description = "Screens global stocks for halal compliance using AAOIFI standards.",
+    version     = "4.0.0",
     contact     = {"name": "Daniel Collazo"},
 )
 
@@ -71,7 +50,7 @@ app.add_middleware(
 )
 
 
-# ── Pydantic schemas ──────────────────────────────────────────────────────────
+# ── Schemas ───────────────────────────────────────────────────────────────────
 
 class PortfolioAddRequest(BaseModel):
     user_id:   int
@@ -79,6 +58,11 @@ class PortfolioAddRequest(BaseModel):
     shares:    float
     buy_price: float
     notes:     str = ""
+
+class WatchlistAddRequest(BaseModel):
+    user_id:      int
+    ticker:       str
+    target_price: float
 
 
 # ── Shared logic ──────────────────────────────────────────────────────────────
@@ -113,9 +97,10 @@ def _build_company(ticker: str) -> dict | None:
         "industry": data.get("industry", "Unknown"),
         "country":  data.get("country", "Unknown"),
         "currency": data.get("currency", "USD"),
-        "price":      data.get("price"),
-        "52w_high":   data.get("52w_high"),
-        "52w_low":    data.get("52w_low"),
+        "price":          data.get("price"),
+        "52w_high":       data.get("52w_high"),
+        "52w_low":        data.get("52w_low"),
+        "target_price":   data.get("target_price"),
         "market_cap":     market_cap,
         "debt":           debt,
         "debt_ratio":     round(debt_ratio, 4),
@@ -128,7 +113,6 @@ def _build_company(ticker: str) -> dict | None:
         "dividend_yield": data.get("dividend_yield"),
         "eps":            data.get("eps"),
         "book_value":     data.get("book_value"),
-        "target_price":   data.get("target_price"),
         "status":       status,
         "reason":       halal_result.get("reason"),
         "reasons":      halal_result.get("reasons", []),
@@ -154,24 +138,17 @@ def _group_and_sort(companies: list[dict]) -> dict:
 @app.get("/", tags=["Health"])
 def home():
     return {
-        "status":    "online",
-        "api":       "Mizan Halal API",
-        "version":   "3.0.0",
-        "endpoints": [
-            "/analyze", "/ranking", "/fair-value",
-            "/history", "/portfolio", "/alerts",
-            "/recommendations", "/company", "/financials", "/dividends"
-        ],
-        "docs": "/docs",
+        "status":  "online",
+        "api":     "Mizan Halal API",
+        "version": "4.0.0",
+        "docs":    "/docs",
     }
 
 
 # ── Screener ──────────────────────────────────────────────────────────────────
 
 @app.get("/analyze", tags=["Screener"])
-def analyze_stock(
-    ticker: str = Query(..., description="Stock ticker (e.g. AAPL, PETR4.SA)")
-):
+def analyze_stock(ticker: str = Query(...)):
     start  = time.perf_counter()
     result = _build_company(ticker)
     if result is None:
@@ -181,9 +158,7 @@ def analyze_stock(
 
 
 @app.get("/ranking", tags=["Screener"])
-def get_ranking(
-    tickers: str = Query(default=None, description="Comma-separated tickers.")
-):
+def get_ranking(tickers: str = Query(default=None)):
     start = time.perf_counter()
     ticker_list = (
         [t.strip() for t in tickers.split(",") if t.strip()]
@@ -224,11 +199,11 @@ def get_ranking(
 # ── Valuation ─────────────────────────────────────────────────────────────────
 
 @app.get("/fair-value", tags=["Valuation"])
-def fair_value(ticker: str = Query(..., description="Stock ticker (e.g. AAPL)")):
+def fair_value(ticker: str = Query(...)):
     data = get_stock_data(ticker.strip().upper())
     if not data.get("available"):
         raise HTTPException(status_code=404, detail=f"No data for '{ticker.upper()}'.")
-    result         = calculate_fair_value(data)
+    result           = calculate_fair_value(data)
     result["ticker"] = ticker.upper()
     result["price"]  = data.get("price")
     return result
@@ -238,8 +213,8 @@ def fair_value(ticker: str = Query(..., description="Stock ticker (e.g. AAPL)"))
 
 @app.get("/history", tags=["Charts"])
 def price_history(
-    ticker: str = Query(..., description="Stock ticker (e.g. AAPL)"),
-    period: str = Query(default="6mo", description="Period: 1mo, 3mo, 6mo, 1y, 2y")
+    ticker: str = Query(...),
+    period: str = Query(default="6mo")
 ):
     valid_periods = ["1mo", "3mo", "6mo", "1y", "2y"]
     if period not in valid_periods:
@@ -253,12 +228,9 @@ def price_history(
 # ── Portfolio ─────────────────────────────────────────────────────────────────
 
 @app.post("/portfolio/add", tags=["Portfolio"])
-def add_to_portfolio(
-    request: PortfolioAddRequest,
-    db: Session = Depends(get_db)
-):
+def add_to_portfolio(request: PortfolioAddRequest, db: Session = Depends(get_db)):
     ticker = request.ticker.strip().upper()
-    data = get_stock_data(ticker)
+    data   = get_stock_data(ticker)
     if not data.get("available"):
         raise HTTPException(status_code=404, detail=f"Invalid ticker '{ticker}'.")
 
@@ -284,14 +256,14 @@ def add_to_portfolio(
     db.refresh(item)
 
     return {
-        "message":      f"✅ {ticker} added to portfolio!",
-        "id":           item.id,
-        "ticker":       ticker,
-        "name":         data.get("name", ticker),
-        "shares":       request.shares,
-        "buy_price":    request.buy_price,
+        "message":        f"✅ {ticker} added to portfolio!",
+        "id":             item.id,
+        "ticker":         ticker,
+        "name":           data.get("name", ticker),
+        "shares":         request.shares,
+        "buy_price":      request.buy_price,
         "total_invested": round(request.shares * request.buy_price, 2),
-        "halal_status": halal_result["status"],
+        "halal_status":   halal_result["status"],
     }
 
 
@@ -301,7 +273,7 @@ def get_portfolio(user_id: int, db: Session = Depends(get_db)):
     if not items:
         return {"portfolio": [], "summary": {"total_invested": 0, "total_value": 0, "return_pct": 0}}
 
-    portfolio = []
+    portfolio      = []
     total_invested = 0
     total_value    = 0
 
@@ -356,6 +328,44 @@ def remove_from_portfolio(item_id: int, db: Session = Depends(get_db)):
     return {"message": f"✅ {item.ticker} removed from portfolio!"}
 
 
+# ── Watchlist ─────────────────────────────────────────────────────────────────
+
+@app.post("/watchlist/add", tags=["Watchlist"])
+def add_to_watchlist(request: WatchlistAddRequest, db: Session = Depends(get_db)):
+    ticker = request.ticker.strip().upper()
+    data   = get_stock_data(ticker)
+    if not data.get("available"):
+        raise HTTPException(status_code=404, detail=f"Invalid ticker '{ticker}'.")
+
+    halal_result = classify_company(
+        sector        = data.get("sector", ""),
+        debt_ratio    = (data.get("debt") or 0) / (data.get("market_cap") or 1),
+        profit_margin = data.get("profit_margin") or 0,
+        industry      = data.get("industry", ""),
+    )
+
+    item = Watchlist(
+        user_id      = request.user_id,
+        ticker       = ticker,
+        name         = data.get("name", ticker),
+        target_price = request.target_price,
+        halal_status = halal_result["status"],
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+
+    return {
+        "message":       f"✅ {ticker} added to watchlist!",
+        "id":            item.id,
+        "ticker":        ticker,
+        "name":          data.get("name", ticker),
+        "target_price":  request.target_price,
+        "current_price": data.get("price"),
+        "halal_status":  halal_result["status"],
+    }
+
+
 # ── Alerts ────────────────────────────────────────────────────────────────────
 
 @app.get("/alerts/{user_id}", tags=["Alerts"])
@@ -371,18 +381,14 @@ def get_alerts(user_id: int):
 # ── Recommendations ───────────────────────────────────────────────────────────
 
 @app.get("/recommendations", tags=["Recommendations"])
-def monthly_recommendations(
-    top_n: int = Query(default=3, description="Number of recommendations (default: 3)")
-):
-    result = get_monthly_recommendations(top_n=top_n)
-    return result
+def monthly_recommendations(top_n: int = Query(default=3)):
+    return get_monthly_recommendations(top_n=top_n)
 
 
-# ── Company (FMP) ─────────────────────────────────────────────────────────────
+# ── Company (Alpha Vantage) ───────────────────────────────────────────────────
 
 @app.get("/company/{ticker}", tags=["Company"])
 def company_profile(ticker: str):
-    """Returns full company profile from FMP."""
     profile = get_company_profile(ticker.upper())
     if not profile:
         raise HTTPException(status_code=404, detail=f"No profile for '{ticker.upper()}'.")
@@ -391,21 +397,12 @@ def company_profile(ticker: str):
 
 @app.get("/financials/{ticker}", tags=["Company"])
 def company_financials(ticker: str):
-    """Returns historical income statements and key metrics."""
     income  = get_income_statement(ticker.upper())
     metrics = get_key_metrics(ticker.upper())
-    return {
-        "ticker":  ticker.upper(),
-        "income":  income,
-        "metrics": metrics,
-    }
+    return {"ticker": ticker.upper(), "income": income, "metrics": metrics}
 
 
 @app.get("/dividends/{ticker}", tags=["Company"])
 def company_dividends(ticker: str):
-    """Returns dividend history."""
     dividends = get_dividends(ticker.upper())
-    return {
-        "ticker":    ticker.upper(),
-        "dividends": dividends,
-    }
+    return {"ticker": ticker.upper(), "dividends": dividends}
