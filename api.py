@@ -19,7 +19,10 @@ from app.scorer import score_company
 from app.database import get_db, Portfolio, Watchlist, create_tables
 from app.alerts import check_alerts
 from app.recommendations import get_monthly_recommendations
-from app.fmp_data import get_company_profile, get_income_statement, get_key_metrics, get_dividends
+from app.fmp_data import (
+    get_company_profile, get_income_statement,
+    get_key_metrics, get_dividends, get_balance_sheet
+)
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
@@ -91,12 +94,12 @@ def _build_company(ticker: str) -> dict | None:
     )
 
     return {
-        "ticker":   ticker.upper(),
-        "name":     data.get("name", ticker),
-        "sector":   data.get("sector", "Unknown"),
-        "industry": data.get("industry", "Unknown"),
-        "country":  data.get("country", "Unknown"),
-        "currency": data.get("currency", "USD"),
+        "ticker":         ticker.upper(),
+        "name":           data.get("name", ticker),
+        "sector":         data.get("sector", "Unknown"),
+        "industry":       data.get("industry", "Unknown"),
+        "country":        data.get("country", "Unknown"),
+        "currency":       data.get("currency", "USD"),
         "price":          data.get("price"),
         "52w_high":       data.get("52w_high"),
         "52w_low":        data.get("52w_low"),
@@ -113,10 +116,10 @@ def _build_company(ticker: str) -> dict | None:
         "dividend_yield": data.get("dividend_yield"),
         "eps":            data.get("eps"),
         "book_value":     data.get("book_value"),
-        "status":       status,
-        "reason":       halal_result.get("reason"),
-        "reasons":      halal_result.get("reasons", []),
-        "purification": halal_result.get("purification", False),
+        "status":         status,
+        "reason":         halal_result.get("reason"),
+        "reasons":        halal_result.get("reasons", []),
+        "purification":   halal_result.get("purification", False),
         "fair_value":         fair_value,
         "fundamental_score":  scores["fundamental_score"],
         "investment_score":   scores["investment_score"],
@@ -399,7 +402,13 @@ def company_profile(ticker: str):
 def company_financials(ticker: str):
     income  = get_income_statement(ticker.upper())
     metrics = get_key_metrics(ticker.upper())
-    return {"ticker": ticker.upper(), "income": income, "metrics": metrics}
+    balance = get_balance_sheet(ticker.upper())
+    return {
+        "ticker":  ticker.upper(),
+        "income":  income,
+        "metrics": metrics,
+        "balance": balance,
+    }
 
 
 @app.get("/dividends/{ticker}", tags=["Company"])

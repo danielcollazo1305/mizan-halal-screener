@@ -1,11 +1,7 @@
 """
-financial_data.py
------------------
-Integrates Alpha Vantage API for historical financial data:
-- Company overview (description, sector, IPO, employees)
-- Income Statement historical (5 years)
-- Balance Sheet historical
-- Cash Flow historical
+fmp_data.py
+-----------
+Integrates Alpha Vantage API for historical financial data.
 """
 
 import requests
@@ -14,9 +10,8 @@ import time
 AV_API_KEY = "P6N2HEQME55LM8EP"
 AV_BASE    = "https://www.alphavantage.co/query"
 
-# ── Cache ─────────────────────────────────────────────────────────────────────
 _CACHE: dict = {}
-_CACHE_TTL   = 3600  # 1 hour
+_CACHE_TTL   = 3600
 
 
 def _is_cache_valid(key: str) -> bool:
@@ -26,7 +21,6 @@ def _is_cache_valid(key: str) -> bool:
 
 
 def _get(params: dict) -> dict | None:
-    """Makes a GET request to Alpha Vantage API."""
     try:
         params["apikey"] = AV_API_KEY
         res = requests.get(AV_BASE, params=params, timeout=15)
@@ -37,10 +31,7 @@ def _get(params: dict) -> dict | None:
         return None
 
 
-# ── Company Overview ──────────────────────────────────────────────────────────
-
 def get_company_profile(ticker: str) -> dict | None:
-    """Returns company overview from Alpha Vantage."""
     cache_key = f"profile_{ticker}"
     if _is_cache_valid(cache_key):
         return _CACHE[cache_key]["data"]
@@ -50,36 +41,36 @@ def get_company_profile(ticker: str) -> dict | None:
         return None
 
     result = {
-        "description": data.get("Description"),
-        "exchange":    data.get("Exchange"),
-        "country":     data.get("Country"),
-        "sector":      data.get("Sector"),
-        "industry":    data.get("Industry"),
-        "employees":   data.get("FullTimeEmployees"),
-        "ipo_date":    data.get("IPODate"),
-        "founded":     None,
-        "website":     None,
-        "ceo":         None,
-        "beta":        _safe_float(data.get("Beta")),
-        "market_cap":  _safe_float(data.get("MarketCapitalization")),
-        "pe_ratio":    _safe_float(data.get("PERatio")),
-        "pb_ratio":    _safe_float(data.get("PriceToBookRatio")),
-        "ev_ebitda":   _safe_float(data.get("EVToEBITDA")),
-        "roe":         _safe_float(data.get("ReturnOnEquityTTM")),
+        "description":    data.get("Description"),
+        "exchange":       data.get("Exchange"),
+        "country":        data.get("Country"),
+        "sector":         data.get("Sector"),
+        "industry":       data.get("Industry"),
+        "employees":      data.get("FullTimeEmployees"),
+        "ipo_date":       data.get("IPODate"),
+        "founded":        None,
+        "website":        None,
+        "ceo":            None,
+        "beta":           _safe_float(data.get("Beta")),
+        "market_cap":     _safe_float(data.get("MarketCapitalization")),
+        "pe_ratio":       _safe_float(data.get("PERatio")),
+        "pb_ratio":       _safe_float(data.get("PriceToBookRatio")),
+        "ev_ebitda":      _safe_float(data.get("EVToEBITDA")),
+        "roe":            _safe_float(data.get("ReturnOnEquityTTM")),
         "analyst_target": _safe_float(data.get("AnalystTargetPrice")),
         "dividend_yield": _safe_float(data.get("DividendYield")),
-        "eps":         _safe_float(data.get("EPS")),
-        "book_value":  _safe_float(data.get("BookValue")),
+        "eps":            _safe_float(data.get("EPS")),
+        "book_value":     _safe_float(data.get("BookValue")),
+        "forward_pe":     _safe_float(data.get("ForwardPE")),
+        "peg_ratio":      _safe_float(data.get("PEGRatio")),
+        "ps_ratio":       _safe_float(data.get("PriceToSalesRatioTTM")),
     }
 
     _CACHE[cache_key] = {"data": result, "_ts": time.time()}
     return result
 
 
-# ── Income Statement ──────────────────────────────────────────────────────────
-
 def get_income_statement(ticker: str, years: int = 5) -> list[dict]:
-    """Returns annual income statements for the last N years."""
     cache_key = f"income_{ticker}"
     if _is_cache_valid(cache_key):
         return _CACHE[cache_key]["data"]
@@ -90,51 +81,115 @@ def get_income_statement(ticker: str, years: int = 5) -> list[dict]:
 
     result = []
     for item in data["annualReports"][:years]:
+        revenue     = _safe_float(item.get("totalRevenue"))
+        gross       = _safe_float(item.get("grossProfit"))
+        net         = _safe_float(item.get("netIncome"))
+        ebitda      = _safe_float(item.get("ebitda"))
+        op_income   = _safe_float(item.get("operatingIncome"))
         result.append({
-            "year":         item.get("fiscalDateEnding", "")[:4],
-            "revenue":      _safe_float(item.get("totalRevenue")),
-            "gross_profit": _safe_float(item.get("grossProfit")),
-            "ebitda":       _safe_float(item.get("ebitda")),
-            "net_income":   _safe_float(item.get("netIncome")),
-            "eps":          _safe_float(item.get("reportedEPS")),
-            "gross_margin": _safe_ratio(item.get("grossProfit"), item.get("totalRevenue")),
-            "net_margin":   _safe_ratio(item.get("netIncome"), item.get("totalRevenue")),
+            "year":          item.get("fiscalDateEnding", "")[:4],
+            "revenue":       revenue,
+            "gross_profit":  gross,
+            "ebitda":        ebitda,
+            "operating_income": op_income,
+            "net_income":    net,
+            "eps":           _safe_float(item.get("reportedEPS")),
+            "gross_margin":  _safe_ratio(gross, revenue),
+            "operating_margin": _safe_ratio(op_income, revenue),
+            "net_margin":    _safe_ratio(net, revenue),
+            "ebitda_margin": _safe_ratio(ebitda, revenue),
         })
 
     _CACHE[cache_key] = {"data": result, "_ts": time.time()}
     return result
 
 
-# ── Key Metrics ───────────────────────────────────────────────────────────────
-
-def get_key_metrics(ticker: str, years: int = 5) -> list[dict]:
-    """Returns key metrics — uses overview for current + cash flow for history."""
-    cache_key = f"metrics_{ticker}"
+def get_balance_sheet(ticker: str, years: int = 5) -> list[dict]:
+    cache_key = f"balance_{ticker}"
     if _is_cache_valid(cache_key):
         return _CACHE[cache_key]["data"]
 
-    data = _get({"function": "CASH_FLOW", "symbol": ticker})
+    data = _get({"function": "BALANCE_SHEET", "symbol": ticker})
     if not data or "annualReports" not in data:
         return []
 
     result = []
     for item in data["annualReports"][:years]:
+        total_assets  = _safe_float(item.get("totalAssets"))
+        total_equity  = _safe_float(item.get("totalShareholderEquity"))
+        total_debt    = _safe_float(item.get("shortLongTermDebtTotal")) or _safe_float(item.get("longTermDebt"))
         result.append({
             "year":          item.get("fiscalDateEnding", "")[:4],
-            "operating_cf":  _safe_float(item.get("operatingCashflow")),
-            "capex":         _safe_float(item.get("capitalExpenditures")),
-            "fcf":           _safe_float(item.get("operatingCashflow"), item.get("capitalExpenditures"), op="subtract"),
-            "dividends_paid":_safe_float(item.get("dividendPayout")),
+            "total_assets":  total_assets,
+            "total_equity":  total_equity,
+            "total_debt":    total_debt,
+            "cash":          _safe_float(item.get("cashAndCashEquivalentsAtCarryingValue")),
+            "debt_to_equity": _safe_ratio(total_debt, total_equity),
         })
 
     _CACHE[cache_key] = {"data": result, "_ts": time.time()}
     return result
 
 
-# ── Dividends ─────────────────────────────────────────────────────────────────
+def get_key_metrics(ticker: str, years: int = 5) -> list[dict]:
+    cache_key = f"metrics_{ticker}"
+    if _is_cache_valid(cache_key):
+        return _CACHE[cache_key]["data"]
+
+    income_data  = get_income_statement(ticker, years)
+    balance_data = get_balance_sheet(ticker, years)
+    cf_data      = _get({"function": "CASH_FLOW", "symbol": ticker})
+
+    cf_by_year = {}
+    if cf_data and "annualReports" in cf_data:
+        for item in cf_data["annualReports"][:years]:
+            year = item.get("fiscalDateEnding", "")[:4]
+            op_cf  = _safe_float(item.get("operatingCashflow"))
+            capex  = _safe_float(item.get("capitalExpenditures"))
+            cf_by_year[year] = {
+                "operating_cf":   op_cf,
+                "capex":          capex,
+                "fcf":            (op_cf - abs(capex)) if op_cf and capex else None,
+                "dividends_paid": _safe_float(item.get("dividendPayout")),
+            }
+
+    result = []
+    income_by_year = {i["year"]: i for i in income_data}
+    balance_by_year = {b["year"]: b for b in balance_data}
+
+    all_years = sorted(set(list(income_by_year.keys()) + list(cf_by_year.keys())), reverse=True)[:years]
+
+    for year in all_years:
+        inc = income_by_year.get(year, {})
+        bal = balance_by_year.get(year, {})
+        cf  = cf_by_year.get(year, {})
+
+        net_income   = inc.get("net_income")
+        total_equity = bal.get("total_equity")
+        total_assets = bal.get("total_assets")
+
+        result.append({
+            "year":           year,
+            "roe":            _safe_ratio(net_income, total_equity),
+            "roa":            _safe_ratio(net_income, total_assets),
+            "net_margin":     inc.get("net_margin"),
+            "gross_margin":   inc.get("gross_margin"),
+            "operating_margin": inc.get("operating_margin"),
+            "ebitda_margin":  inc.get("ebitda_margin"),
+            "operating_cf":   cf.get("operating_cf"),
+            "capex":          cf.get("capex"),
+            "fcf":            cf.get("fcf"),
+            "dividends_paid": cf.get("dividends_paid"),
+            "debt_to_equity": bal.get("debt_to_equity"),
+            "total_debt":     bal.get("total_debt"),
+            "cash":           bal.get("cash"),
+        })
+
+    _CACHE[cache_key] = {"data": result, "_ts": time.time()}
+    return result
+
 
 def get_dividends(ticker: str) -> list[dict]:
-    """Returns dividend history."""
     cache_key = f"dividends_{ticker}"
     if _is_cache_valid(cache_key):
         return _CACHE[cache_key]["data"]
@@ -158,8 +213,6 @@ def get_dividends(ticker: str) -> list[dict]:
     _CACHE[cache_key] = {"data": result, "_ts": time.time()}
     return result
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _safe_float(value, value2=None, op=None) -> float | None:
     try:
