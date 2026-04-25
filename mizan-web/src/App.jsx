@@ -3,6 +3,7 @@ import axios from "axios"
 import Portfolio from "./Portfolio"
 import Ranking from "./Ranking"
 import Recommendations from "./Recommendations"
+import Compare from "./Compare"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts"
 
 const API = "https://web-production-b5851.up.railway.app"
@@ -47,7 +48,6 @@ function Screener() {
       setResult(res.data)
       setHistory(hist.data.history || [])
 
-      // Load FMP data in background
       Promise.all([
         axios.get(`${API}/company/${t.toUpperCase()}`).catch(() => null),
         axios.get(`${API}/financials/${t.toUpperCase()}`).catch(() => null),
@@ -115,7 +115,6 @@ function Screener() {
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px" }}>
-      {/* Search */}
       <div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
         <input
           value={ticker}
@@ -133,7 +132,6 @@ function Screener() {
 
       {result && (
         <div>
-          {/* Header */}
           <div style={{ background: "#1e293b", borderRadius: 12, padding: 24, marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
               <div>
@@ -151,7 +149,6 @@ function Screener() {
               </div>
             </div>
 
-            {/* 52W + Analyst Target */}
             <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
               {priceItems.map(item => (
                 <div key={item.label} style={{ flex: 1, background: "#0f172a", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
@@ -161,7 +158,6 @@ function Screener() {
               ))}
             </div>
 
-            {/* Grade + Score + Upside */}
             <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
               {[
                 { label: "Grade", value: result.grade, color: "#22c55e" },
@@ -179,7 +175,6 @@ function Screener() {
             </p>
           </div>
 
-          {/* Price History */}
           {history.length > 0 && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -212,7 +207,6 @@ function Screener() {
             </div>
           )}
 
-          {/* Tabs */}
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             {tabs.map(t => (
               <button key={t} onClick={() => setActiveTab(t)} style={{
@@ -223,7 +217,6 @@ function Screener() {
             ))}
           </div>
 
-          {/* Overview Tab */}
           {activeTab === "overview" && (
             <div>
               {profile?.description && (
@@ -256,7 +249,6 @@ function Screener() {
             </div>
           )}
 
-          {/* Fundamentals Tab */}
           {activeTab === "fundamentals" && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
               <div style={{ fontWeight: 600, marginBottom: 16 }}>📊 Key Fundamentals</div>
@@ -274,7 +266,6 @@ function Screener() {
             </div>
           )}
 
-          {/* Financials Tab */}
           {activeTab === "financials" && (
             <div>
               {incomeData.length > 0 ? (
@@ -291,8 +282,6 @@ function Screener() {
                       <Bar dataKey="EBITDA" fill="#f59e0b" radius={[4,4,0,0]} />
                     </BarChart>
                   </ResponsiveContainer>
-
-                  {/* Table */}
                   <div style={{ overflowX: "auto", marginTop: 16 }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                       <thead>
@@ -324,7 +313,6 @@ function Screener() {
             </div>
           )}
 
-          {/* Dividends Tab */}
           {activeTab === "dividends" && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
               <div style={{ fontWeight: 600, marginBottom: 16 }}>💰 Dividend History</div>
@@ -381,6 +369,7 @@ export default function App() {
           <button style={navStyle("screener")} onClick={() => setPage("screener")}>Screener</button>
           <button style={navStyle("ranking")} onClick={() => setPage("ranking")}>Ranking</button>
           <button style={navStyle("picks")} onClick={() => setPage("picks")}>⭐ Monthly Picks</button>
+          <button style={navStyle("compare")} onClick={() => setPage("compare")}>⚖️ Compare</button>
           <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>Portfolio</button>
         </div>
       </div>
@@ -388,6 +377,7 @@ export default function App() {
       {page === "screener"  && <Screener />}
       {page === "ranking"   && <Ranking />}
       {page === "picks"     && <Recommendations />}
+      {page === "compare"   && <Compare />}
       {page === "portfolio" && <Portfolio />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
