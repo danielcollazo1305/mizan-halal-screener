@@ -5,7 +5,7 @@ import Ranking from "./Ranking"
 import Recommendations from "./Recommendations"
 import Compare from "./Compare"
 import Watchlist from "./Watchlist"
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts"
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, LineChart, Line } from "recharts"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -28,12 +28,14 @@ function Screener() {
   const [dividends, setDividends] = useState([])
   const [period, setPeriod] = useState("1y")
   const [loading, setLoading] = useState(false)
+  const [loadingExtra, setLoadingExtra] = useState(false)
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
 
   const analyze = async (t = ticker, p = period) => {
     if (!t) return
     setLoading(true)
+    setLoadingExtra(true)
     setError("")
     setResult(null)
     setHistory([])
@@ -48,22 +50,27 @@ function Screener() {
       ])
       setResult(res.data)
       setHistory(hist.data.history || [])
-
-      Promise.all([
-        axios.get(`${API}/company/${t.toUpperCase()}`).catch(() => null),
-        axios.get(`${API}/financials/${t.toUpperCase()}`).catch(() => null),
-        axios.get(`${API}/dividends/${t.toUpperCase()}`).catch(() => null),
-      ]).then(([prof, fin, div]) => {
-        if (prof?.data) setProfile(prof.data)
-        if (fin?.data) setFinancials(fin.data)
-        if (div?.data) setDividends(div.data.dividends || [])
-      })
-
     } catch {
       setError("Stock not found. Check the ticker and try again.")
+      setLoading(false)
+      setLoadingExtra(false)
+      return
     } finally {
       setLoading(false)
     }
+
+    // Load extra data in background with longer timeout
+    Promise.all([
+      axios.get(`${API}/company/${t.toUpperCase()}`, { timeout: 30000 }).catch(() => null),
+      axios.get(`${API}/financials/${t.toUpperCase()}`, { timeout: 60000 }).catch(() => null),
+      axios.get(`${API}/dividends/${t.toUpperCase()}`, { timeout: 30000 }).catch(() => null),
+    ]).then(([prof, fin, div]) => {
+      if (prof?.data) setProfile(prof.data)
+      if (fin?.data) setFinancials(fin.data)
+      if (div?.data) setDividends(div.data.dividends || [])
+    }).finally(() => {
+      setLoadingExtra(false)
+    })
   }
 
   const changePeriod = async (p) => {
@@ -82,8 +89,8 @@ function Screener() {
     ? history[history.length - 1].close >= history[0].close ? "#22c55e" : "#ef4444"
     : "#22c55e"
 
-  const tabs = ["overview", "fundamentals", "financials", "dividends"]
-  const tabLabel = { overview: "Overview", fundamentals: "Fundamentals", financials: "Financials", dividends: "Dividends" }
+  const tabs = ["overview", "fundamentals", "financials", "historical", "dividends"]
+  const tabLabel = { overview: "Overview", fundamentals: "Fundamentals", financials: "Financials", historical: "Historical", dividends: "Dividends" }
 
   const fundamentalItems = result ? [
     { label: "ROE", value: fmtPct(result.roe), hint: "Return on Equity" },
@@ -112,6 +119,14 @@ function Screener() {
     Revenue: i.revenue ? +(i.revenue / 1e9).toFixed(1) : 0,
     "Net Income": i.net_income ? +(i.net_income / 1e9).toFixed(1) : 0,
     EBITDA: i.ebitda ? +(i.ebitda / 1e9).toFixed(1) : 0,
+  })).reverse() || []
+
+  const historicalData = financials?.metrics?.map(m => ({
+    year: m.year,
+    ROE: m.roe ? +(m.roe * 100).toFixed(1) : null,
+    "Net Margin": m.net_margin ? +(m.net_margin * 100).toFixed(1) : null,
+    "Gross Margin": m.gross_margin ? +(m.gross_margin * 100).toFixed(1) : null,
+    FCF: m.fcf ? +(m.fcf / 1e9).toFixed(1) : null,
   })).reverse() || []
 
   return (
@@ -208,14 +223,19 @@ function Screener() {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
             {tabs.map(t => (
               <button key={t} onClick={() => setActiveTab(t)} style={{
-                padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
+                padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
                 background: activeTab === t ? "#22c55e" : "#1e293b",
                 color: activeTab === t ? "#fff" : "#94a3b8",
               }}>{tabLabel[t]}</button>
             ))}
+            {loadingExtra && (
+              <span style={{ color: "#475569", fontSize: 12, alignSelf: "center", marginLeft: 8 }}>
+                ⏳ Loading extra data...
+              </span>
+            )}
           </div>
 
           {activeTab === "overview" && (
@@ -270,7 +290,7 @@ function Screener() {
           {activeTab === "financials" && (
             <div>
               {incomeData.length > 0 ? (
-                <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
                   <div style={{ fontWeight: 600, marginBottom: 16 }}>📈 Revenue & Profit History (USD Billions)</div>
                   <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={incomeData}>
@@ -309,7 +329,82 @@ function Screener() {
                   </div>
                 </div>
               ) : (
-                <p style={{ color: "#94a3b8", textAlign: "center", padding: 40 }}>⏳ Loading financial data...</p>
+                <div style={{ background: "#1e293b", borderRadius: 12, padding: 40, textAlign: "center" }}>
+                  <p style={{ color: "#94a3b8", margin: 0 }}>
+                    {loadingExtra ? "⏳ Loading financial data... This may take up to 60 seconds." : "No financial data available."}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "historical" && (
+            <div>
+              {historicalData.length > 0 ? (
+                <div>
+                  <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 16 }}>📊 Margins & ROE History (%)</div>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={historicalData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis dataKey="year" stroke="#94a3b8" tick={{ fontSize: 12 }} />
+                        <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} tickFormatter={v => `${v}%`} />
+                        <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }} formatter={v => [`${v}%`]} />
+                        <Line type="monotone" dataKey="ROE" stroke="#22c55e" strokeWidth={2} dot={{ fill: "#22c55e" }} />
+                        <Line type="monotone" dataKey="Net Margin" stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6" }} />
+                        <Line type="monotone" dataKey="Gross Margin" stroke="#f59e0b" strokeWidth={2} dot={{ fill: "#f59e0b" }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 16 }}>💰 Free Cash Flow History (USD Billions)</div>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={historicalData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis dataKey="year" stroke="#94a3b8" tick={{ fontSize: 12 }} />
+                        <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} tickFormatter={v => `$${v}B`} />
+                        <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }} formatter={v => [`$${v}B`]} />
+                        <Bar dataKey="FCF" fill="#22c55e" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 16 }}>📋 Historical Metrics Table</div>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ color: "#64748b" }}>
+                            {["Year", "ROE", "Net Margin", "Gross Margin", "Op. Margin", "FCF", "Total Debt", "Cash"].map(h => (
+                              <th key={h} style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid #334155" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {financials.metrics.map(row => (
+                            <tr key={row.year} style={{ borderBottom: "1px solid #1e293b" }}>
+                              <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600 }}>{row.year}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#22c55e" }}>{fmtPct(row.roe)}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{fmtPct(row.net_margin)}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{fmtPct(row.gross_margin)}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{fmtPct(row.operating_margin)}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#22c55e" }}>{fmtB(row.fcf)}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#ef4444" }}>{fmtB(row.total_debt)}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{fmtB(row.cash)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: "#1e293b", borderRadius: 12, padding: 40, textAlign: "center" }}>
+                  <p style={{ color: "#94a3b8", margin: 0 }}>
+                    {loadingExtra ? "⏳ Loading historical data... This may take up to 60 seconds." : "No historical data available."}
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -338,7 +433,7 @@ function Screener() {
                 </table>
               ) : (
                 <p style={{ color: "#94a3b8", textAlign: "center", padding: 20 }}>
-                  {result.dividend_yield ? "⏳ Loading dividend history..." : "No dividends for this stock."}
+                  {loadingExtra ? "⏳ Loading dividend history..." : result.dividend_yield ? "No dividend data available." : "No dividends for this stock."}
                 </p>
               )}
             </div>
