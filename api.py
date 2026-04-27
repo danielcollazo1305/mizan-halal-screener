@@ -16,7 +16,8 @@ from app.market_data import get_stock_data, get_price_history
 from app.halal_filter import classify_company
 from app.fair_value import calculate_fair_value
 from app.scorer import score_company
-from app.database import get_db, Portfolio, Watchlist, PortfolioSnapshot, create_tables
+from app.database import get_db, Portfolio, Watchlist, PortfolioSnapshot, User, create_tables
+from app.auth import hash_password, verify_password, create_access_token, decode_token
 from app.alerts import check_alerts
 from app.recommendations import get_monthly_recommendations
 from app.fmp_data import (
@@ -61,6 +62,14 @@ class PortfolioAddRequest(BaseModel):
     shares:    float
     buy_price: float
     notes:     str = ""
+class RegisterRequest(BaseModel):
+    name:     str
+    email:    str
+    password: str
+
+class LoginRequest(BaseModel):
+    email:    str
+    password: str
 
 class WatchlistAddRequest(BaseModel):
     user_id:      int
@@ -416,55 +425,66 @@ def company_dividends(ticker: str):
     dividends = get_dividends(ticker.upper())
     return {"ticker": ticker.upper(), "dividends": dividends}
 
-# ── Portfolio Evolution ───────────────────────────────────────────────────────
+# ── Auth ─────────────────────────────────────────────────────────────────────
 
-@app.post("/portfolio/{user_id}/snapshot", tags=["Portfolio"])
-def save_snapshot(user_id: int, db: Session = Depends(get_db)):
-    items = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
-    if not items:
-        raise HTTPException(status_code=404, detail="No portfolio found.")
+@app.post("/auth/register", tags=["Auth"])
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == request.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered.")
 
-    total_invested = 0
-    total_value    = 0
-
-    for item in items:
-        data          = get_stock_data(item.ticker)
-        current_price = data.get("price") or item.buy_price
-        total_invested += item.shares * item.buy_price
-        total_value    += item.shares * current_price
-
-    return_pct = round((total_value - total_invested) / total_invested * 100, 2) if total_invested else 0
-
-    snap = PortfolioSnapshot(
-        user_id        = user_id,
-        total_value    = round(total_value, 2),
-        total_invested = round(total_invested, 2),
-        return_pct     = return_pct,
+    user = User(
+        name       = request.name,
+        email      = request.email,
+        password   = hash_password(request.password),
+        is_premium = False,
     )
-    db.add(snap)
+    db.add(user)
     db.commit()
+    db.refresh(user)
 
-    return {"message": "✅ Snapshot saved!", "total_value": round(total_value, 2), "return_pct": return_pct}
-
-
-@app.get("/portfolio/{user_id}/evolution", tags=["Portfolio"])
-def get_evolution(user_id: int, db: Session = Depends(get_db)):
-    snaps = (
-        db.query(PortfolioSnapshot)
-        .filter(PortfolioSnapshot.user_id == user_id)
-        .order_by(PortfolioSnapshot.date)
-        .all()
-    )
+    token = create_access_token({"user_id": user.id, "email": user.email})
     return {
-        "user_id": user_id,
-        "count":   len(snaps),
-        "evolution": [
-            {
-                "date":           str(snap.date)[:10],
-                "total_value":    snap.total_value,
-                "total_invested": snap.total_invested,
-                "return_pct":     snap.return_pct,
-            }
-            for snap in snaps
-        ]
+        "message": "✅ Account created!",
+        "token":   token,
+        "user": {
+            "id":    user.id,
+            "name":  user.name,
+            "email": user.email,
+        }
+    }
+
+
+@app.post("/auth/login", tags=["Auth"])
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user or not verify_password(request.password, user.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    token = create_access_token({"user_id": user.id, "email": user.email})
+    return {
+        "message": "✅ Login successful!",
+        "token":   token,
+        "user": {
+            "id":    user.id,
+            "name":  user.name,
+            "email": user.email,
+        }
+    }
+
+
+@app.get("/auth/me", tags=["Auth"])
+def get_me(token: str = Query(...), db: Session = Depends(get_db)):
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
+    user = db.query(User).filter(User.id == payload["user_id"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {
+        "id":         user.id,
+        "name":       user.name,
+        "email":      user.email,
+        "is_premium": user.is_premium,
+        "created_at": str(user.created_at),
     }

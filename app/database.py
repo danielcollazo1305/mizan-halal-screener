@@ -34,9 +34,11 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
 
+
     id         = Column(Integer, primary_key=True, index=True)
     email      = Column(String, unique=True, index=True, nullable=False)
     name       = Column(String, nullable=False)
+    password   = Column(String, nullable=False)
     is_premium = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -88,17 +90,17 @@ class AnalysisCache(Base):
     data_json    = Column(Text)
 
 
-# ── Helper functions ──────────────────────────────────────────────────────────
-
 class PortfolioSnapshot(Base):
     __tablename__ = "portfolio_snapshots"
 
-    id         = Column(Integer, primary_key=True, index=True)
-    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False)
-    date       = Column(DateTime, default=datetime.utcnow, nullable=False)
-    total_value = Column(Float, nullable=False)
+    id             = Column(Integer, primary_key=True, index=True)
+    user_id        = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date           = Column(DateTime, default=datetime.utcnow, nullable=False)
+    total_value    = Column(Float, nullable=False)
     total_invested = Column(Float, nullable=False)
-    return_pct = Column(Float, nullable=False)
+    return_pct     = Column(Float, nullable=False)
+
+# ── Helper functions ──────────────────────────────────────────────────────────
 
 def get_db():
     """Dependency for FastAPI endpoints."""
