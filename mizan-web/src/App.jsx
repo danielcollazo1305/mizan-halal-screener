@@ -6,6 +6,7 @@ import Recommendations from "./Recommendations"
 import Compare from "./Compare"
 import Watchlist from "./Watchlist"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, LineChart, Line } from "recharts"
+import Auth from "./Auth"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -446,6 +447,18 @@ function Screener() {
 
 export default function App() {
   const [page, setPage] = useState("screener")
+const [user, setUser] = useState(() => {
+  const u = localStorage.getItem("mizan_user")
+  return u ? JSON.parse(u) : null
+})
+
+const logout = () => {
+  localStorage.removeItem("mizan_token")
+  localStorage.removeItem("mizan_user")
+  setUser(null)
+}
+
+if (!user) return <Auth onLogin={setUser} />
 
   const navStyle = (p) => ({
     padding: "8px 16px", borderRadius: 8, border: "none",
@@ -468,6 +481,13 @@ export default function App() {
           <button style={navStyle("compare")} onClick={() => setPage("compare")}>⚖️ Compare</button>
           <button style={navStyle("watchlist")} onClick={() => setPage("watchlist")}>🔔 Alerts</button>
           <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>💼 Portfolio</button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ color: "#64748b", fontSize: 13 }}>👤 {user.name}</span>
+          <button onClick={logout} style={{
+            padding: "6px 14px", borderRadius: 8, border: "1px solid #334155",
+            background: "transparent", color: "#94a3b8", cursor: "pointer", fontSize: 13,
+          }}>Logout</button>
         </div>
       </div>
 
