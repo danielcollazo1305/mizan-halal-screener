@@ -100,7 +100,7 @@ function Screener() {
     { label: "Revenue Growth", value: fmtPct(result.revenue_growth), hint: "YoY revenue growth" },
     { label: "Earnings Growth", value: fmtPct(result.earnings_growth), hint: "YoY earnings growth" },
     { label: "Debt Ratio", value: result.debt_ratio ? `${(result.debt_ratio * 100).toFixed(1)}%` : "N/A", hint: "Debt / Market Cap" },
-    { label: "Dividend Yield", value: fmtPct(result.dividend_yield), hint: "Annual dividend yield" },
+    { label: "Dividend Yield", value: result.dividend_yield ? `${result.dividend_yield.toFixed(2)}%` : "N/A", hint: "Annual dividend yield" },
     { label: "Market Cap", value: fmtB(result.market_cap), hint: "Total market value" },
     { label: "EPS", value: result.eps ? `$${result.eps.toFixed(2)}` : "N/A", hint: "Earnings per share" },
     { label: "Book Value", value: result.book_value ? `$${result.book_value.toFixed(2)}` : "N/A", hint: "Book value per share" },
