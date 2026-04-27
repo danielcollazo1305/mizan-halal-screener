@@ -331,6 +331,49 @@ def get_portfolio(user_id: int, db: Session = Depends(get_db)):
 
 
 @app.delete("/portfolio/{item_id}", tags=["Portfolio"])
+@app.post("/portfolio/{user_id}/snapshot", tags=["Portfolio"])
+def save_snapshot(user_id: int, db: Session = Depends(get_db)):
+    items = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
+    if not items:
+        raise HTTPException(status_code=400, detail="No portfolio items found.")
+
+    total_invested = sum(i.shares * i.buy_price for i in items)
+    total_value = 0
+    for item in items:
+        data = get_stock_data(item.ticker)
+        current_price = data.get("price") or item.buy_price
+        total_value += item.shares * current_price
+
+    return_pct = round((total_value - total_invested) / total_invested * 100, 2) if total_invested else 0
+
+    snapshot = PortfolioSnapshot(
+        user_id        = user_id,
+        total_value    = round(total_value, 2),
+        total_invested = round(total_invested, 2),
+        return_pct     = return_pct,
+    )
+    db.add(snapshot)
+    db.commit()
+    return {"message": "✅ Snapshot saved!", "total_value": round(total_value, 2)}
+
+
+@app.get("/portfolio/{user_id}/evolution", tags=["Portfolio"])
+def get_evolution(user_id: int, db: Session = Depends(get_db)):
+    snapshots = db.query(PortfolioSnapshot).filter(
+        PortfolioSnapshot.user_id == user_id
+    ).order_by(PortfolioSnapshot.date).all()
+
+    return {
+        "evolution": [
+            {
+                "date":           s.date.strftime("%Y-%m-%d"),
+                "total_value":    s.total_value,
+                "total_invested": s.total_invested,
+                "return_pct":     s.return_pct,
+            }
+            for s in snapshots
+        ]
+    }
 def remove_from_portfolio(item_id: int, db: Session = Depends(get_db)):
     item = db.query(Portfolio).filter(Portfolio.id == item_id).first()
     if not item:
