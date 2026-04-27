@@ -16,7 +16,7 @@ from app.market_data import get_stock_data, get_price_history
 from app.halal_filter import classify_company
 from app.fair_value import calculate_fair_value
 from app.scorer import score_company
-from app.database import get_db, Portfolio, Watchlist, create_tables
+from app.database import get_db, Portfolio, Watchlist, PortfolioSnapshot, create_tables
 from app.alerts import check_alerts
 from app.recommendations import get_monthly_recommendations
 from app.fmp_data import (
@@ -415,3 +415,56 @@ def company_financials(ticker: str):
 def company_dividends(ticker: str):
     dividends = get_dividends(ticker.upper())
     return {"ticker": ticker.upper(), "dividends": dividends}
+
+# ── Portfolio Evolution ───────────────────────────────────────────────────────
+
+@app.post("/portfolio/{user_id}/snapshot", tags=["Portfolio"])
+def save_snapshot(user_id: int, db: Session = Depends(get_db)):
+    items = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
+    if not items:
+        raise HTTPException(status_code=404, detail="No portfolio found.")
+
+    total_invested = 0
+    total_value    = 0
+
+    for item in items:
+        data          = get_stock_data(item.ticker)
+        current_price = data.get("price") or item.buy_price
+        total_invested += item.shares * item.buy_price
+        total_value    += item.shares * current_price
+
+    return_pct = round((total_value - total_invested) / total_invested * 100, 2) if total_invested else 0
+
+    snap = PortfolioSnapshot(
+        user_id        = user_id,
+        total_value    = round(total_value, 2),
+        total_invested = round(total_invested, 2),
+        return_pct     = return_pct,
+    )
+    db.add(snap)
+    db.commit()
+
+    return {"message": "✅ Snapshot saved!", "total_value": round(total_value, 2), "return_pct": return_pct}
+
+
+@app.get("/portfolio/{user_id}/evolution", tags=["Portfolio"])
+def get_evolution(user_id: int, db: Session = Depends(get_db)):
+    snaps = (
+        db.query(PortfolioSnapshot)
+        .filter(PortfolioSnapshot.user_id == user_id)
+        .order_by(PortfolioSnapshot.date)
+        .all()
+    )
+    return {
+        "user_id": user_id,
+        "count":   len(snaps),
+        "evolution": [
+            {
+                "date":           str(snap.date)[:10],
+                "total_value":    snap.total_value,
+                "total_invested": snap.total_invested,
+                "return_pct":     snap.return_pct,
+            }
+            for snap in snaps
+        ]
+    }

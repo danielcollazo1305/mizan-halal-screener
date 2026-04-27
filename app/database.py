@@ -90,6 +90,16 @@ class AnalysisCache(Base):
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
+class PortfolioSnapshot(Base):
+    __tablename__ = "portfolio_snapshots"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date       = Column(DateTime, default=datetime.utcnow, nullable=False)
+    total_value = Column(Float, nullable=False)
+    total_invested = Column(Float, nullable=False)
+    return_pct = Column(Float, nullable=False)
+
 def get_db():
     """Dependency for FastAPI endpoints."""
     db = SessionLocal()
