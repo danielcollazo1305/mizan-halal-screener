@@ -12,6 +12,7 @@ export default function Portfolio() {
   const [loading, setLoading] = useState(false)
   const [adding, setAdding] = useState(false)
   const [message, setMessage] = useState("")
+  const [evolution, setEvolution] = useState([])
 
   const fetchPortfolio = async () => {
     setLoading(true)
@@ -26,7 +27,29 @@ export default function Portfolio() {
     }
   }
 
-  useEffect(() => { fetchPortfolio() }, [])
+  const fetchEvolution = async () => {
+    try {
+      const res = await axios.get(`${API}/portfolio/${USER_ID}/evolution`)
+      setEvolution(res.data.evolution)
+    } catch {
+      setEvolution([])
+    }
+  }
+
+  const saveSnapshot = async () => {
+    try {
+      await axios.post(`${API}/portfolio/${USER_ID}/snapshot`)
+      alert("Snapshot saved!")
+      fetchEvolution()
+    } catch {
+      alert("Error saving snapshot.")
+    }
+  }
+
+  useEffect(() => {
+    fetchPortfolio()
+    fetchEvolution()
+  }, [])
 
   const addStock = async () => {
     if (!form.ticker || !form.shares || !form.buy_price) return
@@ -58,20 +81,19 @@ export default function Portfolio() {
     }
   }
 
+  const statusColor = { HALAL: "#22c55e", QUESTIONABLE: "#f59e0b", HARAM: "#ef4444" }
+
   const chartData = portfolio.map(item => ({
     name:     item.ticker,
     invested: item.invested,
     current:  item.current_value,
   }))
 
-  const statusColor = { HALAL: "#22c55e", QUESTIONABLE: "#f59e0b", HARAM: "#ef4444" }
-
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px", color: "#f1f5f9", fontFamily: "sans-serif" }}>
 
       <h2 style={{ color: "#22c55e", marginBottom: 24 }}>💼 My Halal Portfolio</h2>
 
-      {/* Summary */}
       {summary && (
         <>
           <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
@@ -87,14 +109,43 @@ export default function Portfolio() {
               </div>
             ))}
           </div>
-          {/* Disclaimer */}
           <p style={{ color: "#475569", fontSize: 12, textAlign: "center", margin: "8px 0 24px" }}>
             📊 Return is based on current market price. Past performance does not guarantee future results.
           </p>
         </>
       )}
 
-      {/* Chart */}
+      {/* Snapshot Button */}
+      <div style={{ textAlign: "right", marginBottom: 12 }}>
+        <button
+          onClick={saveSnapshot}
+          style={{ padding: "8px 16px", borderRadius: 8, background: "#22c55e", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer", fontSize: 13 }}
+        >
+          Save Today's Snapshot
+        </button>
+      </div>
+
+      {/* Evolution Chart */}
+      {evolution.length > 0 && (
+        <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 24 }}>
+          <div style={{ fontWeight: 600, marginBottom: 16 }}>Portfolio Evolution</div>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={evolution}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 12 }} />
+              <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{ background: "#0f172a", border: "none" }}
+                formatter={(value) => [`$${value.toFixed(2)}`, ""]}
+              />
+              <Line type="monotone" dataKey="total_value" stroke="#22c55e" name="Portfolio Value" dot={{ r: 4 }} strokeWidth={2} />
+              <Line type="monotone" dataKey="total_invested" stroke="#94a3b8" name="Invested" dot={false} strokeDasharray="4 4" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Invested vs Current Chart */}
       {chartData.length > 0 && (
         <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 32 }}>
           <div style={{ fontWeight: 600, marginBottom: 16 }}>Invested vs Current Value</div>
