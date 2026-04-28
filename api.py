@@ -532,31 +532,6 @@ def get_me(token: str = Query(...), db: Session = Depends(get_db)):
         "created_at": str(user.created_at),
     }
 
-# ── Price Alerts ──────────────────────────────────────────────────────────────
-
-from app.database import PriceAlert
-from app.email_service import send_price_alert_email
-
-class PriceAlertRequest(BaseModel):
-    user_id:      int
-    ticker:       str
-    name:         str = ""
-    target_price: float
-    condition:    str = "below"  # "below" ou "above"
-
-@app.post("/price-alerts", tags=["Alerts"])
-def create_price_alert(request: PriceAlertRequest, db: Session = Depends(get_db)):
-    alert = PriceAlert(
-        user_id      = request.user_id,
-        ticker       = request.ticker.upper(),
-        name         = request.name or request.ticker.upper(),
-        target_price = request.target_price,
-        condition    = request.condition,
-    )
-    db.add(alert)
-    db.commit()
-    db.refresh(alert)
-    return {"message": "✅ Alert created!", "alert_id": alert.id}
 
 # ── Price Alerts ──────────────────────────────────────────────────────────────
 
