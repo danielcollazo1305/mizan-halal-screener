@@ -7,6 +7,7 @@ import Compare from "./Compare"
 import Watchlist from "./Watchlist"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, LineChart, Line } from "recharts"
 import Auth from "./Auth"
+import Alerts from "./Alerts"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -479,7 +480,8 @@ if (!user) return <Auth onLogin={setUser} />
           <button style={navStyle("ranking")} onClick={() => setPage("ranking")}>Ranking</button>
           <button style={navStyle("picks")} onClick={() => setPage("picks")}>⭐ Picks</button>
           <button style={navStyle("compare")} onClick={() => setPage("compare")}>⚖️ Compare</button>
-          <button style={navStyle("watchlist")} onClick={() => setPage("watchlist")}>🔔 Alerts</button>
+          <button style={navStyle("watchlist")} onClick={() => setPage("watchlist")}>👁️ Watchlist</button>
+          <button style={navStyle("alerts")} onClick={() => setPage("alerts")}>🔔 Alerts</button>
           <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>💼 Portfolio</button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -496,6 +498,7 @@ if (!user) return <Auth onLogin={setUser} />
       {page === "picks"     && <Recommendations />}
       {page === "compare"   && <Compare />}
       {page === "watchlist" && <Watchlist />}
+      {page === "alerts" && <Alerts user={user} />}
       {page === "portfolio" && <Portfolio />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
