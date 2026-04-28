@@ -538,10 +538,14 @@ def get_benchmarks(period: str = Query(default="1y")):
     import yfinance as yf
     
     benchmarks = {
-        "sp500":  "^GSPC",
-        "djimi":  "DJIM",  # Dow Jones Islamic Market Index
-        "nasdaq": "^IXIC",
-    }
+    "sp500":    "^GSPC",
+    "nasdaq":   "^IXIC",
+    "djimi":    "DJIM",
+    "ftse100":  "^FTSE",
+    "dax":      "^GDAXI",
+    "emerging": "EEM",
+    "shanghai": "000001.SS",
+}
     
     result = {}
     for name, symbol in benchmarks.items():
