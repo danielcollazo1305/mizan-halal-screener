@@ -107,6 +107,22 @@ class PortfolioSnapshot(Base):
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
+class PriceAlert(Base):
+    __tablename__ = "price_alerts"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    user_id       = Column(Integer, ForeignKey("users.id"), nullable=False)
+    ticker        = Column(String, nullable=False)
+    name          = Column(String)
+    target_price  = Column(Float, nullable=False)
+    condition     = Column(String, default="below")  # "below" ou "above"
+    is_active     = Column(Boolean, default=True)
+    triggered_at  = Column(DateTime, nullable=True)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", backref="price_alerts")
+
+
 def get_db():
     """Dependency for FastAPI endpoints."""
     db = SessionLocal()
