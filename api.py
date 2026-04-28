@@ -531,3 +531,37 @@ def get_me(token: str = Query(...), db: Session = Depends(get_db)):
         "is_premium": user.is_premium,
         "created_at": str(user.created_at),
     }
+# ── Benchmarks ────────────────────────────────────────────────────────────────
+
+@app.get("/benchmarks", tags=["Benchmarks"])
+def get_benchmarks(period: str = Query(default="1y")):
+    import yfinance as yf
+    
+    benchmarks = {
+        "sp500":  "^GSPC",
+        "djimi":  "ISDU",  # iShares MSCI World Islamic ETF
+        "nasdaq": "^IXIC",
+    }
+    
+    result = {}
+    for name, symbol in benchmarks.items():
+        try:
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period=period)
+            if hist.empty:
+                continue
+            
+            # Normaliza para base 100
+            first_price = hist["Close"].iloc[0]
+            data = [
+                {
+                    "date":  str(hist.index[i].date()),
+                    "value": round((hist["Close"].iloc[i] / first_price) * 100, 2),
+                }
+                for i in range(len(hist))
+            ]
+            result[name] = data
+        except Exception:
+            result[name] = []
+    
+    return result
