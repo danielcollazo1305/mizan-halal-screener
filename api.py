@@ -539,7 +539,7 @@ def get_benchmarks(period: str = Query(default="1y")):
     
     benchmarks = {
         "sp500":  "^GSPC",
-        "djimi":  "ISDU",  # iShares MSCI World Islamic ETF
+        "djimi":  "DJIM",  # Dow Jones Islamic Market Index
         "nasdaq": "^IXIC",
     }
     
