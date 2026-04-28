@@ -531,6 +531,96 @@ def get_me(token: str = Query(...), db: Session = Depends(get_db)):
         "is_premium": user.is_premium,
         "created_at": str(user.created_at),
     }
+
+# ── Price Alerts ──────────────────────────────────────────────────────────────
+
+from app.database import PriceAlert
+from app.email_service import send_price_alert_email
+
+class PriceAlertRequest(BaseModel):
+    user_id:      int
+    ticker:       str
+    name:         str = ""
+    target_price: float
+    condition:    str = "below"  # "below" ou "above"
+
+@app.post("/price-alerts", tags=["Alerts"])
+def create_price_alert(request: PriceAlertRequest, db: Session = Depends(get_db)):
+    alert = PriceAlert(
+        user_id      = request.user_id,
+        ticker       = request.ticker.upper(),
+        name         = request.name or request.ticker.upper(),
+        target_price = request.target_price,
+        condition    = request.condition,
+    )
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+    return {"message": "✅ Alert created!", "alert_id": alert.id}
+
+@app.get("/price-alerts/{user_id}", tags=["Alerts"])
+def get_price_alerts(user_id: int, db: Session = Depends(get_db)):
+    alerts = db.query(PriceAlert).filter(
+        PriceAlert.user_id == user_id,
+        PriceAlert.is_active == True,
+    ).all()
+    return {"alerts": [
+        {
+            "id":           a.id,
+            "ticker":       a.ticker,
+            "name":         a.name,
+            "target_price": a.target_price,
+            "condition":    a.condition,
+            "created_at":   str(a.created_at),
+        } for a in alerts
+    ]}
+
+@app.delete("/price-alerts/{alert_id}", tags=["Alerts"])
+def delete_price_alert(alert_id: int, db: Session = Depends(get_db)):
+    alert = db.query(PriceAlert).filter(PriceAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found.")
+    db.delete(alert)
+    db.commit()
+    return {"message": "✅ Alert deleted!"}
+
+@app.post("/price-alerts/check", tags=["Alerts"])
+def check_price_alerts(db: Session = Depends(get_db)):
+    """Verifica todos os alertas ativos e envia email se atingido."""
+    active = db.query(PriceAlert).filter(PriceAlert.is_active == True).all()
+    triggered = []
+
+    for alert in active:
+        try:
+            data = get_stock_data(alert.ticker)
+            if not data.get("available"):
+                continue
+            current_price = data.get("price") or 0
+            hit = (
+                (alert.condition == "below" and current_price <= alert.target_price) or
+                (alert.condition == "above" and current_price >= alert.target_price)
+            )
+            if hit:
+                user = db.query(User).filter(User.id == alert.user_id).first()
+                if user:
+                    send_price_alert_email(
+                        to_email      = user.email,
+                        user_name     = user.name,
+                        ticker        = alert.ticker,
+                        stock_name    = alert.name or alert.ticker,
+                        current_price = current_price,
+                        target_price  = alert.target_price,
+                        condition     = alert.condition,
+                    )
+                alert.is_active    = False
+                alert.triggered_at = datetime.utcnow()
+                db.commit()
+                triggered.append(alert.ticker)
+        except Exception:
+            continue
+
+    return {"checked": len(active), "triggered": triggered}
+
 # ── Benchmarks ────────────────────────────────────────────────────────────────
 
 @app.get("/benchmarks", tags=["Benchmarks"])
