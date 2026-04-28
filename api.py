@@ -537,6 +537,8 @@ def get_me(token: str = Query(...), db: Session = Depends(get_db)):
 
 from app.database import PriceAlert
 from app.email_service import send_price_alert_email
+from app.export_service import generate_stock_pdf, generate_ranking_excel
+from fastapi.responses import Response
 
 class PriceAlertRequest(BaseModel):
     user_id:      int
@@ -618,6 +620,38 @@ def check_price_alerts(db: Session = Depends(get_db)):
         except Exception:
             continue
     return {"checked": len(active), "triggered": triggered}
+
+# ── Export ────────────────────────────────────────────────────────────────────
+
+@app.get("/export/pdf/{ticker}", tags=["Export"])
+def export_stock_pdf(ticker: str):
+    result = _build_company(ticker.upper())
+    if not result:
+        raise HTTPException(status_code=404, detail=f"No data for '{ticker.upper()}'.")
+    pdf_bytes = generate_stock_pdf(result)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=mizan_{ticker.upper()}.pdf"}
+    )
+
+@app.get("/export/excel/ranking", tags=["Export"])
+def export_ranking_excel(tickers: str = Query(default=None)):
+    ticker_list = (
+        [t.strip() for t in tickers.split(",") if t.strip()]
+        if tickers else TICKERS
+    )
+    companies = [r for t in ticker_list if (r := _build_company(t)) is not None]
+    if not companies:
+        raise HTTPException(status_code=503, detail="No data available.")
+    grouped = _group_and_sort(companies)
+    all_companies = grouped["HALAL"] + grouped["QUESTIONABLE"] + grouped["HARAM"]
+    excel_bytes = generate_ranking_excel(all_companies)
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=mizan_ranking.xlsx"}
+    )
 
 # ── Benchmarks ────────────────────────────────────────────────────────────────
 
