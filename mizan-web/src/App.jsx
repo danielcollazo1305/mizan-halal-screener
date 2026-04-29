@@ -8,6 +8,7 @@ import Watchlist from "./Watchlist"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, LineChart, Line } from "recharts"
 import Auth from "./Auth"
 import Alerts from "./Alerts"
+import Dashboard from "./Dashboard"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -61,7 +62,6 @@ function Screener() {
       setLoading(false)
     }
 
-    // Load extra data in background with longer timeout
     Promise.all([
       axios.get(`${API}/company/${t.toUpperCase()}`, { timeout: 30000 }).catch(() => null),
       axios.get(`${API}/financials/${t.toUpperCase()}`, { timeout: 60000 }).catch(() => null),
@@ -116,20 +116,20 @@ function Screener() {
     { label: "Analyst Target", value: profile?.analyst_target ? `$${profile.analyst_target.toFixed(2)}` : result.target_price ? `$${result.target_price.toFixed(2)}` : "N/A" },
   ] : []
 
-  const incomeData = financials?.income?.map(i => ({
+  const incomeData = Array.isArray(financials?.income) ? financials.income.map(i => ({
     year: i.year,
     Revenue: i.revenue ? +(i.revenue / 1e9).toFixed(1) : 0,
     "Net Income": i.net_income ? +(i.net_income / 1e9).toFixed(1) : 0,
     EBITDA: i.ebitda ? +(i.ebitda / 1e9).toFixed(1) : 0,
-  })).reverse() || []
+  })).reverse() : []
 
-  const historicalData = financials?.metrics?.map(m => ({
+  const historicalData = Array.isArray(financials?.metrics) ? financials.metrics.map(m => ({
     year: m.year,
     ROE: m.roe ? +(m.roe * 100).toFixed(1) : null,
     "Net Margin": m.net_margin ? +(m.net_margin * 100).toFixed(1) : null,
     "Gross Margin": m.gross_margin ? +(m.gross_margin * 100).toFixed(1) : null,
     FCF: m.fcf ? +(m.fcf / 1e9).toFixed(1) : null,
-  })).reverse() || []
+  })).reverse() : []
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px" }}>
@@ -164,6 +164,7 @@ function Screener() {
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 28, fontWeight: 700 }}>${result.price?.toFixed(2)}</div>
                 <div style={{ color: statusColor[result.status], fontWeight: 700, fontSize: 18 }}>{result.status}</div>
+                <a href={`${API}/export/pdf/${result.ticker}`} target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, padding: "6px 12px", borderRadius: 6, background: "#0f172a", color: "#22c55e", border: "1px solid #22c55e44", fontWeight: 600, fontSize: 12, textDecoration: "none", display: "inline-block" }}>📄 Export PDF</a>
               </div>
             </div>
 
@@ -358,7 +359,6 @@ function Screener() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-
                   <div style={{ background: "#1e293b", borderRadius: 12, padding: 20, marginBottom: 16 }}>
                     <div style={{ fontWeight: 600, marginBottom: 16 }}>💰 Free Cash Flow History (USD Billions)</div>
                     <ResponsiveContainer width="100%" height={200}>
@@ -371,7 +371,6 @@ function Screener() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-
                   <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
                     <div style={{ fontWeight: 600, marginBottom: 16 }}>📋 Historical Metrics Table</div>
                     <div style={{ overflowX: "auto" }}>
@@ -384,16 +383,16 @@ function Screener() {
                           </tr>
                         </thead>
                         <tbody>
-                          {financials.metrics.map(row => (
+                          {historicalData.map(row => (
                             <tr key={row.year} style={{ borderBottom: "1px solid #1e293b" }}>
                               <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600 }}>{row.year}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#22c55e" }}>{fmtPct(row.roe)}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{fmtPct(row.net_margin)}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{fmtPct(row.gross_margin)}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{fmtPct(row.operating_margin)}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#22c55e" }}>{fmtB(row.fcf)}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#ef4444" }}>{fmtB(row.total_debt)}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{fmtB(row.cash)}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#22c55e" }}>{row.ROE ? `${row.ROE}%` : "N/A"}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{row["Net Margin"] ? `${row["Net Margin"]}%` : "N/A"}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>{row["Gross Margin"] ? `${row["Gross Margin"]}%` : "N/A"}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>N/A</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#22c55e" }}>{row.FCF ? `$${row.FCF}B` : "N/A"}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#ef4444" }}>N/A</td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: "#94a3b8" }}>N/A</td>
                             </tr>
                           ))}
                         </tbody>
@@ -448,18 +447,18 @@ function Screener() {
 
 export default function App() {
   const [page, setPage] = useState("screener")
-const [user, setUser] = useState(() => {
-  const u = localStorage.getItem("mizan_user")
-  return u ? JSON.parse(u) : null
-})
+  const [user, setUser] = useState(() => {
+    const u = localStorage.getItem("mizan_user")
+    return u ? JSON.parse(u) : null
+  })
 
-const logout = () => {
-  localStorage.removeItem("mizan_token")
-  localStorage.removeItem("mizan_user")
-  setUser(null)
-}
+  const logout = () => {
+    localStorage.removeItem("mizan_token")
+    localStorage.removeItem("mizan_user")
+    setUser(null)
+  }
 
-if (!user) return <Auth onLogin={setUser} />
+  if (!user) return <Auth onLogin={setUser} />
 
   const navStyle = (p) => ({
     padding: "8px 16px", borderRadius: 8, border: "none",
@@ -476,6 +475,7 @@ if (!user) return <Auth onLogin={setUser} />
           <span style={{ color: "#94a3b8", marginLeft: 8, fontSize: 14 }}>Halal Stock Screener</span>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
+          <button style={navStyle("dashboard")} onClick={() => setPage("dashboard")}>Dashboard</button>
           <button style={navStyle("screener")} onClick={() => setPage("screener")}>Screener</button>
           <button style={navStyle("ranking")} onClick={() => setPage("ranking")}>Ranking</button>
           <button style={navStyle("picks")} onClick={() => setPage("picks")}>⭐ Picks</button>
@@ -493,12 +493,13 @@ if (!user) return <Auth onLogin={setUser} />
         </div>
       </div>
 
+      {page === "dashboard" && <Dashboard />}
       {page === "screener"  && <Screener />}
       {page === "ranking"   && <Ranking />}
       {page === "picks"     && <Recommendations />}
       {page === "compare"   && <Compare />}
       {page === "watchlist" && <Watchlist />}
-      {page === "alerts" && <Alerts user={user} />}
+      {page === "alerts"    && <Alerts user={user} />}
       {page === "portfolio" && <Portfolio />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
