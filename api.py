@@ -765,3 +765,125 @@ def calculate_zakat(user_id: int, db: Session = Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    # ── Compliance Alerts ────────────────────────────────────────────────────────
+
+@app.post("/compliance-check", tags=["Compliance"])
+def run_compliance_check(db: Session = Depends(get_db)):
+    watchlist_items = db.query(Watchlist).all()
+    tickers_checked = set()
+    alerts_fired = []
+
+    for item in watchlist_items:
+        ticker = item.ticker
+        if ticker in tickers_checked:
+            continue
+        tickers_checked.add(ticker)
+
+        try:
+            result = _build_company(ticker)
+            if not result:
+                continue
+
+            new_status = result["status"]
+            company_name = result["name"]
+
+            snapshot = db.query(ComplianceSnapshot).filter(
+                ComplianceSnapshot.ticker == ticker
+            ).first()
+
+            if snapshot is None:
+                snapshot = ComplianceSnapshot(
+                    ticker=ticker,
+                    company_name=company_name,
+                    status=new_status,
+                    score=result.get("investment_score"),
+                )
+                db.add(snapshot)
+                db.commit()
+                continue
+
+            prev_status = snapshot.status
+
+            if prev_status != new_status:
+                alert = ComplianceAlert(
+                    ticker=ticker,
+                    company_name=company_name,
+                    prev_status=prev_status,
+                    new_status=new_status,
+                )
+                db.add(alert)
+                snapshot.status = new_status
+                snapshot.score = result.get("investment_score")
+                db.commit()
+                db.refresh(alert)
+
+                affected_users = db.query(Watchlist).filter(
+                    Watchlist.ticker == ticker
+                ).all()
+
+                for w in affected_users:
+                    user = db.query(User).filter(User.id == w.user_id).first()
+                    if user:
+                        send_compliance_alert_email(
+                            to_email=user.email,
+                            user_name=user.name,
+                            ticker=ticker,
+                            company_name=company_name,
+                            prev_status=prev_status,
+                            new_status=new_status,
+                        )
+
+                alert.notified = True
+                db.commit()
+                alerts_fired.append({
+                    "ticker": ticker,
+                    "prev_status": prev_status,
+                    "new_status": new_status,
+                })
+            else:
+                snapshot.score = result.get("investment_score")
+                db.commit()
+
+        except Exception as e:
+            logging.warning(f"Compliance check failed for {ticker}: {e}")
+            continue
+
+    return {
+        "tickers_checked": len(tickers_checked),
+        "alerts_fired": len(alerts_fired),
+        "changes": alerts_fired,
+    }
+
+
+@app.get("/compliance-alerts/{user_id}", tags=["Compliance"])
+def get_compliance_alerts(user_id: int, db: Session = Depends(get_db)):
+    user_tickers = [
+        w.ticker for w in db.query(Watchlist).filter(Watchlist.user_id == user_id).all()
+    ]
+
+    if not user_tickers:
+        return {"user_id": user_id, "alerts": []}
+
+    alerts = (
+        db.query(ComplianceAlert)
+        .filter(ComplianceAlert.ticker.in_(user_tickers))
+        .order_by(ComplianceAlert.changed_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    return {
+        "user_id": user_id,
+        "total": len(alerts),
+        "alerts": [
+            {
+                "id": a.id,
+                "ticker": a.ticker,
+                "company_name": a.company_name,
+                "prev_status": a.prev_status,
+                "new_status": a.new_status,
+                "changed_at": str(a.changed_at),
+            }
+            for a in alerts
+        ],
+    }
