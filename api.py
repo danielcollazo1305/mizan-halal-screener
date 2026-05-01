@@ -17,7 +17,7 @@ from app.market_data import get_stock_data, get_price_history
 from app.halal_filter import classify_company
 from app.fair_value import calculate_fair_value
 from app.scorer import score_company
-from app.database import get_db, Portfolio, Watchlist, PortfolioSnapshot, User, create_tables
+from app.database import get_db, Portfolio, Watchlist, PortfolioSnapshot, User, create_tables, ComplianceSnapshot, ComplianceAlert
 from app.auth import hash_password, verify_password, create_access_token, decode_token
 from app.alerts import check_alerts
 from app.recommendations import get_monthly_recommendations
@@ -537,7 +537,7 @@ def get_me(token: str = Query(...), db: Session = Depends(get_db)):
 # ── Price Alerts ──────────────────────────────────────────────────────────────
 
 from app.database import PriceAlert
-from app.email_service import send_price_alert_email
+from app.email_service import send_price_alert_email, send_compliance_alert_email
 from app.export_service import generate_stock_pdf, generate_ranking_excel
 from fastapi.responses import Response
 
