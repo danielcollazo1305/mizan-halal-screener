@@ -110,17 +110,40 @@ class PortfolioSnapshot(Base):
 class PriceAlert(Base):
     __tablename__ = "price_alerts"
 
-    id            = Column(Integer, primary_key=True, index=True)
-    user_id       = Column(Integer, ForeignKey("users.id"), nullable=False)
-    ticker        = Column(String, nullable=False)
-    name          = Column(String)
-    target_price  = Column(Float, nullable=False)
-    condition     = Column(String, default="below")  # "below" ou "above"
-    is_active     = Column(Boolean, default=True)
-    triggered_at  = Column(DateTime, nullable=True)
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    id           = Column(Integer, primary_key=True, index=True)
+    user_id      = Column(Integer, ForeignKey("users.id"), nullable=False)
+    ticker       = Column(String, nullable=False)
+    name         = Column(String)
+    target_price = Column(Float, nullable=False)
+    condition    = Column(String, default="below")
+    is_active    = Column(Boolean, default=True)
+    triggered_at = Column(DateTime, nullable=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", backref="price_alerts")
+
+
+class ComplianceSnapshot(Base):
+    __tablename__ = "compliance_snapshots"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    ticker       = Column(String, unique=True, index=True, nullable=False)
+    company_name = Column(String)
+    status       = Column(String, nullable=False)
+    score        = Column(Float, nullable=True)
+    checked_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ComplianceAlert(Base):
+    __tablename__ = "compliance_alerts"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    ticker       = Column(String, nullable=False, index=True)
+    company_name = Column(String)
+    prev_status  = Column(String, nullable=False)
+    new_status   = Column(String, nullable=False)
+    changed_at   = Column(DateTime, default=datetime.utcnow)
+    notified     = Column(Boolean, default=False)
 
 
 def get_db():
@@ -140,22 +163,3 @@ def create_tables():
 
 if __name__ == "__main__":
     create_tables()
-
-    class ComplianceSnapshot(Base):
-    __tablename__ = "compliance_snapshots"
-    id           = Column(Integer, primary_key=True, index=True)
-    ticker       = Column(String, unique=True, index=True, nullable=False)
-    company_name = Column(String)
-    status       = Column(String, nullable=False)   # HALAL / QUESTIONABLE / HARAM
-    score        = Column(Float, nullable=True)
-    checked_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class ComplianceAlert(Base):
-    __tablename__ = "compliance_alerts"
-    id           = Column(Integer, primary_key=True, index=True)
-    ticker       = Column(String, nullable=False, index=True)
-    company_name = Column(String)
-    prev_status  = Column(String, nullable=False)
-    new_status   = Column(String, nullable=False)
-    changed_at   = Column(DateTime, default=datetime.utcnow)
-    notified     = Column(Boolean, default=False)
