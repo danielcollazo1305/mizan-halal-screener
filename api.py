@@ -705,7 +705,7 @@ def calculate_zakat(user_id: int, db: Session = Depends(get_db)):
     try:
         # Busca o portfólio do usuário
         items = db.execute(
-            text("SELECT ticker, quantity, current_price, current_value, halal_status FROM portfolio WHERE user_id = :uid"),
+            text("SELECT ticker, quantity, current_price, current_value, halal_status FROM portfolios WHERE user_id = :uid"),
             {"uid": user_id}
         ).fetchall()
 
