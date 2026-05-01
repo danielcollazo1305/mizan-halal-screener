@@ -705,7 +705,7 @@ def calculate_zakat(user_id: int, db: Session = Depends(get_db)):
     try:
         # Busca o portfólio do usuário
         items = db.execute(
-            text("SELECT ticker, quantity, current_price, current_value, halal_status FROM portfolios WHERE user_id = :uid"),
+            text("SELECT ticker, shares, buy_price, halal_status FROM portfolios WHERE user_id = :uid"),
             {"uid": user_id}
         ).fetchall()
 
@@ -730,10 +730,10 @@ def calculate_zakat(user_id: int, db: Session = Depends(get_db)):
 
         for item in items:
             ticker       = item[0]
-            quantity     = item[1] or 0
+            shares       = item[1] or 0
             price        = item[2] or 0
-            value        = item[3] or (quantity * price)
-            halal_status = item[4] or "unknown"
+            halal_status = item[3] or "unknown"
+            value        = shares * price
 
             total_value += value
 
