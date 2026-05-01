@@ -691,3 +691,77 @@ def get_benchmarks(period: str = Query(default="1y")):
             result[name] = []
     
     return result
+
+    # ── Zakat Calculator ─────────────────────────────────────────────────────────
+
+@app.get("/zakat/{user_id}", tags=["Zakat"])
+def calculate_zakat(user_id: int, db: Session = Depends(get_db)):
+    """
+    Calcula o Zakat devido baseado no portfólio do usuário.
+    Zakat = 2.5% sobre ativos elegíveis acima do nisab.
+    Nisab atual: equivalente a 85g de ouro (~$5,200 USD).
+    """
+    try:
+        # Busca o portfólio do usuário
+        items = db.execute(
+            text("SELECT ticker, quantity, current_price, current_value, halal_status FROM portfolio WHERE user_id = :uid"),
+            {"uid": user_id}
+        ).fetchall()
+
+        if not items:
+            return {
+                "user_id": user_id,
+                "portfolio_value": 0,
+                "eligible_value": 0,
+                "nisab_usd": 5200,
+                "zakat_due": 0,
+                "zakat_rate": 0.025,
+                "above_nisab": False,
+                "breakdown": []
+            }
+
+        NISAB_USD    = 5200.0   # equivalente a 85g de ouro em USD
+        ZAKAT_RATE   = 0.025    # 2.5%
+
+        breakdown    = []
+        total_value  = 0.0
+        eligible     = 0.0
+
+        for item in items:
+            ticker       = item[0]
+            quantity     = item[1] or 0
+            price        = item[2] or 0
+            value        = item[3] or (quantity * price)
+            halal_status = item[4] or "unknown"
+
+            total_value += value
+
+            # Só ativos halal são elegíveis para Zakat
+            is_eligible = halal_status.lower() == "halal"
+            if is_eligible:
+                eligible += value
+
+            breakdown.append({
+                "ticker":       ticker,
+                "value":        round(value, 2),
+                "halal_status": halal_status,
+                "eligible":     is_eligible,
+                "zakat":        round(value * ZAKAT_RATE, 2) if is_eligible else 0,
+            })
+
+        above_nisab = eligible > NISAB_USD
+        zakat_due   = round(eligible * ZAKAT_RATE, 2) if above_nisab else 0.0
+
+        return {
+            "user_id":        user_id,
+            "portfolio_value": round(total_value, 2),
+            "eligible_value": round(eligible, 2),
+            "nisab_usd":      NISAB_USD,
+            "zakat_due":      zakat_due,
+            "zakat_rate":     ZAKAT_RATE,
+            "above_nisab":    above_nisab,
+            "breakdown":      breakdown,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

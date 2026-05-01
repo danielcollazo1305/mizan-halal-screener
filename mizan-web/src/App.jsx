@@ -10,6 +10,7 @@ import Auth from "./Auth"
 import Alerts from "./Alerts"
 import Dashboard from "./Dashboard"
 import Landing from "./Landing"
+import Zakat from "./Zakat"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -486,6 +487,7 @@ export default function App() {
           <button style={navStyle("watchlist")} onClick={() => setPage("watchlist")}>👁️ Watchlist</button>
           <button style={navStyle("alerts")} onClick={() => setPage("alerts")}>🔔 Alerts</button>
           <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>💼 Portfolio</button>
+          <button style={navStyle("zakat")} onClick={() => setPage("zakat")}>🕌 Zakat</button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ color: "#64748b", fontSize: 13 }}>👤 {user.name}</span>
@@ -503,6 +505,7 @@ export default function App() {
       {page === "compare"   && <Compare />}
       {page === "watchlist" && <Watchlist />}
       {page === "alerts"    && <Alerts user={user} />}
+      {page === "zakat" && <Zakat />}
       {page === "portfolio" && <Portfolio />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
