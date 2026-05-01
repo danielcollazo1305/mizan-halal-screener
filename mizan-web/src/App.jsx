@@ -9,6 +9,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import Auth from "./Auth"
 import Alerts from "./Alerts"
 import Dashboard from "./Dashboard"
+import Landing from "./Landing"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -457,7 +458,9 @@ export default function App() {
     localStorage.removeItem("mizan_user")
     setUser(null)
   }
+  const [showLanding, setShowLanding] = useState(true)
 
+  if (showLanding) return <Landing onGetStarted={() => setShowLanding(false)} />
   if (!user) return <Auth onLogin={setUser} />
 
   const navStyle = (p) => ({
