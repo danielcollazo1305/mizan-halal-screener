@@ -264,13 +264,23 @@ function Screener() {
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>Halal Status</div>
                 <p style={{ margin: 0, color: "#94a3b8" }}>{result.reason}</p>
               </div>
-              {result.fair_value && (
-                <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 10 }}>Fair Value</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", color: "#94a3b8" }}>
-                    <span>Graham: <b style={{ color: "#f1f5f9" }}>${result.fair_value.graham_value?.toFixed(2) ?? "N/A"}</b></span>
-                    <span>DCF: <b style={{ color: "#f1f5f9" }}>${result.fair_value.dcf_value?.toFixed(2) ?? "N/A"}</b></span>
-                    <span>Valuation: <b style={{ color: "#f1f5f9" }}>{result.fair_value.valuation}</b></span>
+             {result.fair_value && (
+              <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
+                <div style={{ fontWeight: 600, marginBottom: 10 }}>Fair Value</div>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#94a3b8" }}>
+                  <span>Graham: <b style={{ color: "#f1f5f9" }}>${result.fair_value.graham_value?.toFixed(2) ?? "N/A"}</b></span>
+                  <span>DCF: <b style={{ color: "#f1f5f9" }}>${result.fair_value.dcf_value?.toFixed(2) ?? "N/A"}</b></span>
+                  <span>Valuation: <b style={{ color: "#f1f5f9" }}>{result.fair_value.valuation}</b></span>
+                </div>
+              </div>
+            )}
+
+            {(result.status === "HARAM" || result.status === "QUESTIONABLE") && (
+              <HalalAlternatives ticker={result.ticker} />
+            )}
+
+          </div>
+        )}
                   </div>
                 </div>
               )}

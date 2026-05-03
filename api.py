@@ -892,24 +892,25 @@ def get_compliance_alerts(user_id: int, db: Session = Depends(get_db)):
 
 # Alternativas curadas por setor — adicionadas uma vez na base de dados
 HALAL_ALTERNATIVES_DATA = [
-    # Pagamentos / Fintech (substitutos de V, MA, PYPL)
-    {"haram_ticker": "V",    "alt_ticker": "FOUR",  "alt_name": "Shift4 Payments",      "reason": "Payment processor, no interest income",          "sector": "Financials"},
-    {"haram_ticker": "MA",   "alt_ticker": "FOUR",  "alt_name": "Shift4 Payments",      "reason": "Payment processor, no interest income",          "sector": "Financials"},
-    {"haram_ticker": "PYPL", "alt_ticker": "FOUR",  "alt_name": "Shift4 Payments",      "reason": "Payment processor, no interest income",          "sector": "Financials"},
-    # Bancos convencionais (substitutos de JPM, BAC, GS, WFC)
-    {"haram_ticker": "JPM",  "alt_ticker": "ADBE",  "alt_name": "Adobe Inc",            "reason": "Tech, no interest-based revenue",                "sector": "Technology"},
-    {"haram_ticker": "BAC",  "alt_ticker": "MSFT",  "alt_name": "Microsoft",            "reason": "Tech, no interest-based revenue",                "sector": "Technology"},
-    {"haram_ticker": "GS",   "alt_ticker": "MSFT",  "alt_name": "Microsoft",            "reason": "Tech, no interest-based revenue",                "sector": "Technology"},
-    # Álcool / Tabaco (substitutos de MO, PM, BUD)
-    {"haram_ticker": "MO",   "alt_ticker": "COST",  "alt_name": "Costco",               "reason": "Retail, halal consumer goods",                   "sector": "Consumer"},
-    {"haram_ticker": "PM",   "alt_ticker": "WMT",   "alt_name": "Walmart",              "reason": "Retail, halal consumer goods",                   "sector": "Consumer"},
-    {"haram_ticker": "BUD",  "alt_ticker": "PEP",   "alt_name": "PepsiCo",              "reason": "Beverages without alcohol",                      "sector": "Consumer"},
-    # Entretenimento adulto / Casinos
-    {"haram_ticker": "LVS",  "alt_ticker": "ABNB",  "alt_name": "Airbnb",               "reason": "Halal hospitality and travel",                   "sector": "Consumer"},
-    {"haram_ticker": "MGM",  "alt_ticker": "ABNB",  "alt_name": "Airbnb",               "reason": "Halal hospitality and travel",                   "sector": "Consumer"},
-    # Defesa / Armas
-    {"haram_ticker": "LMT",  "alt_ticker": "HON",   "alt_name": "Honeywell",            "reason": "Industrial tech, minimal weapons exposure",      "sector": "Industrials"},
-    {"haram_ticker": "RTX",  "alt_ticker": "HON",   "alt_name": "Honeywell",            "reason": "Industrial tech, minimal weapons exposure",      "sector": "Industrials"},
+    # Pagamentos (substitutos de V, MA, PYPL)
+    {"haram_ticker": "V",    "alt_ticker": "AAPL",  "alt_name": "Apple Inc",            "reason": "Apple Pay — tech-based payments, no interest income",  "sector": "Technology"},
+    {"haram_ticker": "V",    "alt_ticker": "MSFT",  "alt_name": "Microsoft",            "reason": "Tech, no interest-based revenue",                      "sector": "Technology"},
+    {"haram_ticker": "MA",   "alt_ticker": "AAPL",  "alt_name": "Apple Inc",            "reason": "Apple Pay — tech-based payments, no interest income",  "sector": "Technology"},
+    {"haram_ticker": "PYPL", "alt_ticker": "AAPL",  "alt_name": "Apple Inc",            "reason": "Apple Pay — tech-based payments, no interest income",  "sector": "Technology"},
+    # Bancos
+    {"haram_ticker": "JPM",  "alt_ticker": "MSFT",  "alt_name": "Microsoft",            "reason": "Tech, no interest-based revenue",                      "sector": "Technology"},
+    {"haram_ticker": "BAC",  "alt_ticker": "NVDA",  "alt_name": "NVIDIA",               "reason": "Semiconductors, no haram activities",                  "sector": "Technology"},
+    {"haram_ticker": "GS",   "alt_ticker": "AAPL",  "alt_name": "Apple Inc",            "reason": "Tech, no interest-based revenue",                      "sector": "Technology"},
+    # Álcool / Tabaco
+    {"haram_ticker": "MO",   "alt_ticker": "COST",  "alt_name": "Costco",               "reason": "Retail, halal consumer goods",                         "sector": "Consumer"},
+    {"haram_ticker": "PM",   "alt_ticker": "WMT",   "alt_name": "Walmart",              "reason": "Retail, halal consumer goods",                         "sector": "Consumer"},
+    {"haram_ticker": "BUD",  "alt_ticker": "PEP",   "alt_name": "PepsiCo",              "reason": "Beverages without alcohol",                            "sector": "Consumer"},
+    # Casinos
+    {"haram_ticker": "LVS",  "alt_ticker": "ABNB",  "alt_name": "Airbnb",               "reason": "Halal hospitality and travel",                         "sector": "Consumer"},
+    {"haram_ticker": "MGM",  "alt_ticker": "ABNB",  "alt_name": "Airbnb",               "reason": "Halal hospitality and travel",                         "sector": "Consumer"},
+    # Defesa
+    {"haram_ticker": "LMT",  "alt_ticker": "HON",   "alt_name": "Honeywell",            "reason": "Industrial tech, minimal weapons exposure",            "sector": "Industrials"},
+    {"haram_ticker": "RTX",  "alt_ticker": "HON",   "alt_name": "Honeywell",            "reason": "Industrial tech, minimal weapons exposure",            "sector": "Industrials"},
 ]
 
 @app.on_event("startup")
@@ -955,7 +956,7 @@ def get_halal_alternatives(ticker: str, db: Session = Depends(get_db)):
     for alt in alternatives:
         try:
             data = _build_company(alt.alt_ticker)
-            if data and data["status"] == "HALAL":
+            if data and data["status"] in ["HALAL", "QUESTIONABLE"]:
                 results.append({
                     "ticker":   alt.alt_ticker,
                     "name":     alt.alt_name,
