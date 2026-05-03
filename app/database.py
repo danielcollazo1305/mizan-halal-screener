@@ -145,6 +145,17 @@ class ComplianceAlert(Base):
     changed_at   = Column(DateTime, default=datetime.utcnow)
     notified     = Column(Boolean, default=False)
 
+class HalalAlternative(Base):
+    __tablename__ = "halal_alternatives"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    haram_ticker    = Column(String, nullable=False, index=True)
+    alt_ticker      = Column(String, nullable=False)
+    alt_name        = Column(String)
+    reason          = Column(String)   # ex: "Islamic bank, no interest income"
+    sector          = Column(String)
+    created_at      = Column(DateTime, default=datetime.utcnow)
+
 
 def get_db():
     """Dependency for FastAPI endpoints."""

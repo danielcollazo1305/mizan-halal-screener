@@ -17,7 +17,7 @@ from app.market_data import get_stock_data, get_price_history
 from app.halal_filter import classify_company
 from app.fair_value import calculate_fair_value
 from app.scorer import score_company
-from app.database import get_db, Portfolio, Watchlist, PortfolioSnapshot, User, create_tables, ComplianceSnapshot, ComplianceAlert, PriceAlert
+from app.database import get_db, Portfolio, Watchlist, PortfolioSnapshot, User, create_tables, ComplianceSnapshot, ComplianceAlert, PriceAlert, HalalAlternative
 from app.auth import hash_password, verify_password, create_access_token, decode_token
 from app.alerts import check_alerts
 from app.recommendations import get_monthly_recommendations
@@ -886,4 +886,92 @@ def get_compliance_alerts(user_id: int, db: Session = Depends(get_db)):
             }
             for a in alerts
         ],
+    }
+
+# ── Halal Alternatives ────────────────────────────────────────────────────────
+
+# Alternativas curadas por setor — adicionadas uma vez na base de dados
+HALAL_ALTERNATIVES_DATA = [
+    # Pagamentos / Fintech (substitutos de V, MA, PYPL)
+    {"haram_ticker": "V",    "alt_ticker": "FOUR",  "alt_name": "Shift4 Payments",      "reason": "Payment processor, no interest income",          "sector": "Financials"},
+    {"haram_ticker": "MA",   "alt_ticker": "FOUR",  "alt_name": "Shift4 Payments",      "reason": "Payment processor, no interest income",          "sector": "Financials"},
+    {"haram_ticker": "PYPL", "alt_ticker": "FOUR",  "alt_name": "Shift4 Payments",      "reason": "Payment processor, no interest income",          "sector": "Financials"},
+    # Bancos convencionais (substitutos de JPM, BAC, GS, WFC)
+    {"haram_ticker": "JPM",  "alt_ticker": "ADBE",  "alt_name": "Adobe Inc",            "reason": "Tech, no interest-based revenue",                "sector": "Technology"},
+    {"haram_ticker": "BAC",  "alt_ticker": "MSFT",  "alt_name": "Microsoft",            "reason": "Tech, no interest-based revenue",                "sector": "Technology"},
+    {"haram_ticker": "GS",   "alt_ticker": "MSFT",  "alt_name": "Microsoft",            "reason": "Tech, no interest-based revenue",                "sector": "Technology"},
+    # Álcool / Tabaco (substitutos de MO, PM, BUD)
+    {"haram_ticker": "MO",   "alt_ticker": "COST",  "alt_name": "Costco",               "reason": "Retail, halal consumer goods",                   "sector": "Consumer"},
+    {"haram_ticker": "PM",   "alt_ticker": "WMT",   "alt_name": "Walmart",              "reason": "Retail, halal consumer goods",                   "sector": "Consumer"},
+    {"haram_ticker": "BUD",  "alt_ticker": "PEP",   "alt_name": "PepsiCo",              "reason": "Beverages without alcohol",                      "sector": "Consumer"},
+    # Entretenimento adulto / Casinos
+    {"haram_ticker": "LVS",  "alt_ticker": "ABNB",  "alt_name": "Airbnb",               "reason": "Halal hospitality and travel",                   "sector": "Consumer"},
+    {"haram_ticker": "MGM",  "alt_ticker": "ABNB",  "alt_name": "Airbnb",               "reason": "Halal hospitality and travel",                   "sector": "Consumer"},
+    # Defesa / Armas
+    {"haram_ticker": "LMT",  "alt_ticker": "HON",   "alt_name": "Honeywell",            "reason": "Industrial tech, minimal weapons exposure",      "sector": "Industrials"},
+    {"haram_ticker": "RTX",  "alt_ticker": "HON",   "alt_name": "Honeywell",            "reason": "Industrial tech, minimal weapons exposure",      "sector": "Industrials"},
+]
+
+@app.on_event("startup")
+def seed_halal_alternatives():
+    """Popula a tabela halal_alternatives na startup se estiver vazia."""
+    db = next(get_db())
+    try:
+        existing = db.query(HalalAlternative).count()
+        if existing == 0:
+            for item in HALAL_ALTERNATIVES_DATA:
+                db.add(HalalAlternative(**item))
+            db.commit()
+            logging.info(f"✅ Seeded {len(HALAL_ALTERNATIVES_DATA)} halal alternatives.")
+    except Exception as e:
+        logging.warning(f"Seed alternatives failed: {e}")
+    finally:
+        db.close()
+
+
+@app.get("/alternatives/{ticker}", tags=["Screener"])
+def get_halal_alternatives(ticker: str, db: Session = Depends(get_db)):
+    """
+    Retorna alternativas halal para um ticker HARAM ou QUESTIONABLE.
+    Também analisa cada alternativa em tempo real.
+    """
+    ticker = ticker.strip().upper()
+
+    # Busca alternativas na base de dados
+    alternatives = db.query(HalalAlternative).filter(
+        HalalAlternative.haram_ticker == ticker
+    ).all()
+
+    if not alternatives:
+        # Fallback: busca por setor se não há mapeamento direto
+        original = _build_company(ticker)
+        if original:
+            sector = original.get("sector", "")
+            alternatives = db.query(HalalAlternative).filter(
+                HalalAlternative.sector == sector
+            ).limit(3).all()
+
+    results = []
+    for alt in alternatives:
+        try:
+            data = _build_company(alt.alt_ticker)
+            if data and data["status"] == "HALAL":
+                results.append({
+                    "ticker":   alt.alt_ticker,
+                    "name":     alt.alt_name,
+                    "reason":   alt.reason,
+                    "sector":   alt.sector,
+                    "price":    data.get("price"),
+                    "status":   data["status"],
+                    "score":    data.get("investment_score"),
+                    "grade":    data.get("grade"),
+                    "upside":   data.get("fair_value", {}).get("upside_pct"),
+                })
+        except Exception:
+            continue
+
+    return {
+        "ticker": ticker,
+        "total": len(results),
+        "alternatives": results,
     }
