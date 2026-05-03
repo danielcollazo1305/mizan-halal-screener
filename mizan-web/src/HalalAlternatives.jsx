@@ -17,7 +17,7 @@ export default function HalalAlternatives({ ticker }) {
   useEffect(() => {
     if (!ticker) return
     setLoading(true)
-    axios.get(`${API}/alternatives/${ticker}`)
+    axios.get(`${API}/alternatives/${ticker}`, { timeout: 60000 })
       .then(res => setData(res.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false))
