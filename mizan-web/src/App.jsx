@@ -12,6 +12,7 @@ import Dashboard from "./Dashboard"
 import Landing from "./Landing"
 import Zakat from "./Zakat"
 import ComplianceAlerts from "./ComplianceAlerts"
+import HalalAlternatives from "./HalalAlternatives"
 
 const API = "https://web-production-b5851.up.railway.app"
 
