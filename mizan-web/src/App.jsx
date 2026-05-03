@@ -281,12 +281,7 @@ function Screener() {
 
           </div>
         )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
+        
           {activeTab === "fundamentals" && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
               <div style={{ fontWeight: 600, marginBottom: 16 }}>📊 Key Fundamentals</div>
