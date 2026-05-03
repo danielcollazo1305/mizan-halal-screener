@@ -988,3 +988,98 @@ def get_halal_alternatives(ticker: str):
         "total": len(results),
         "alternatives": results,
     }
+
+# ── Baskets Temáticos ─────────────────────────────────────────────────────────
+
+BASKETS = [
+    {
+        "id": "top-tech-halal",
+        "name": "Top 10 Tech Halal",
+        "emoji": "💻",
+        "description": "The best halal technology stocks — high growth, no haram activities.",
+        "tickers": ["AAPL", "MSFT", "NVDA", "GOOGL", "AVGO", "AMD", "QCOM", "AMAT", "NOW", "ADBE"],
+    },
+    {
+        "id": "healthcare-halal",
+        "name": "Healthcare Halal",
+        "emoji": "💊",
+        "description": "Pharmaceutical and medical companies screened for halal compliance.",
+        "tickers": ["JNJ", "LLY", "MRK", "ABBV", "AMGN", "UNH", "INTU", "TMO", "DHR", "ISRG"],
+    },
+    {
+        "id": "consumer-halal",
+        "name": "Consumer Staples Halal",
+        "emoji": "🛒",
+        "description": "Everyday consumer goods companies — halal certified.",
+        "tickers": ["WMT", "COST", "PG", "KO", "PEP", "MCD", "NKE", "SBUX", "HD", "TGT"],
+    },
+    {
+        "id": "industrial-halal",
+        "name": "Industrials Halal",
+        "emoji": "⚙️",
+        "description": "Industrial and infrastructure companies with halal compliance.",
+        "tickers": ["HON", "GE", "CAT", "DE", "UNP", "MMM", "EMR", "ITW", "ROK", "PH"],
+    },
+    {
+        "id": "dividend-halal",
+        "name": "Halal Dividend Kings",
+        "emoji": "💰",
+        "description": "Halal stocks with consistent dividend payments.",
+        "tickers": ["JNJ", "KO", "PG", "ABBV", "MRK", "WMT", "NKE", "PEP", "HON", "TXN"],
+    },
+]
+
+@app.get("/baskets", tags=["Baskets"])
+def get_baskets():
+    """Retorna a lista de baskets temáticos disponíveis."""
+    return {
+        "total": len(BASKETS),
+        "baskets": [
+            {
+                "id": b["id"],
+                "name": b["name"],
+                "emoji": b["emoji"],
+                "description": b["description"],
+                "ticker_count": len(b["tickers"]),
+                "tickers": b["tickers"],
+            }
+            for b in BASKETS
+        ]
+    }
+
+@app.get("/baskets/{basket_id}", tags=["Baskets"])
+def get_basket_detail(basket_id: str):
+    """Retorna os detalhes de um basket específico com análise halal de cada ticker."""
+    basket = next((b for b in BASKETS if b["id"] == basket_id), None)
+    if not basket:
+        raise HTTPException(status_code=404, detail=f"Basket '{basket_id}' not found.")
+
+    stocks = []
+    for ticker in basket["tickers"]:
+        try:
+            data = _build_company(ticker)
+            if data:
+                stocks.append({
+                    "ticker": data["ticker"],
+                    "name": data["name"],
+                    "status": data["status"],
+                    "grade": data["grade"],
+                    "score": data["investment_score"],
+                    "price": data["price"],
+                    "upside": data.get("fair_value", {}).get("upside_pct"),
+                    "sector": data["sector"],
+                })
+        except Exception:
+            continue
+
+    halal_count = sum(1 for s in stocks if s["status"] == "HALAL")
+
+    return {
+        "id": basket["id"],
+        "name": basket["name"],
+        "emoji": basket["emoji"],
+        "description": basket["description"],
+        "total": len(stocks),
+        "halal_count": halal_count,
+        "stocks": sorted(stocks, key=lambda x: x["score"], reverse=True),
+    }
