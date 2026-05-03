@@ -13,6 +13,7 @@ import Landing from "./Landing"
 import Zakat from "./Zakat"
 import ComplianceAlerts from "./ComplianceAlerts"
 import HalalAlternatives from "./HalalAlternatives"
+import Baskets from "./Baskets"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -281,7 +282,7 @@ function Screener() {
 
           </div>
         )}
-        
+
           {activeTab === "fundamentals" && (
             <div style={{ background: "#1e293b", borderRadius: 12, padding: 20 }}>
               <div style={{ fontWeight: 600, marginBottom: 16 }}>📊 Key Fundamentals</div>
@@ -496,6 +497,7 @@ export default function App() {
           <button style={navStyle("portfolio")} onClick={() => setPage("portfolio")}>💼 Portfolio</button>
           <button style={navStyle("zakat")} onClick={() => setPage("zakat")}>🕌 Zakat</button>
           <button style={navStyle("compliance")} onClick={() => setPage("compliance")}>🛡️ Compliance</button>
+          <button style={navStyle("baskets")} onClick={() => setPage("baskets")}>🧺 Baskets</button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ color: "#64748b", fontSize: 13 }}>👤 {user.name}</span>
@@ -516,6 +518,7 @@ export default function App() {
       {page === "zakat" && <Zakat />}
       {page === "portfolio" && <Portfolio />}
       {page === "compliance" && <ComplianceAlerts user={user} />}
+      {page === "baskets" && <Baskets />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
         📊 Mizan provides data-driven analysis for informational purposes only. This is not financial advice.
