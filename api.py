@@ -931,45 +931,57 @@ def seed_halal_alternatives():
 
 
 @app.get("/alternatives/{ticker}", tags=["Screener"])
-def get_halal_alternatives(ticker: str, db: Session = Depends(get_db)):
-    """
-    Retorna alternativas halal para um ticker HARAM ou QUESTIONABLE.
-    Também analisa cada alternativa em tempo real.
-    """
+def get_halal_alternatives(ticker: str):
     ticker = ticker.strip().upper()
 
-    # Busca alternativas na base de dados
-    alternatives = db.query(HalalAlternative).filter(
-        HalalAlternative.haram_ticker == ticker
-    ).all()
+    STATIC_ALTERNATIVES = {
+        "V":    [("AAPL", "Apple Inc",  "Apple Pay — tech payments, no interest income"),
+                 ("MSFT", "Microsoft",  "Tech, no interest-based revenue")],
+        "MA":   [("AAPL", "Apple Inc",  "Apple Pay — tech payments, no interest income"),
+                 ("MSFT", "Microsoft",  "Tech, no interest-based revenue")],
+        "PYPL": [("AAPL", "Apple Inc",  "Apple Pay — tech payments, no interest income")],
+        "JPM":  [("MSFT", "Microsoft",  "Tech, no interest-based revenue"),
+                 ("NVDA", "NVIDIA",     "Semiconductors, no haram activities")],
+        "BAC":  [("NVDA", "NVIDIA",     "Semiconductors, no haram activities"),
+                 ("AAPL", "Apple Inc",  "Tech, no interest-based revenue")],
+        "GS":   [("AAPL", "Apple Inc",  "Tech, no interest-based revenue")],
+        "WFC":  [("MSFT", "Microsoft",  "Tech, no interest-based revenue")],
+        "MO":   [("COST", "Costco",     "Retail, halal consumer goods"),
+                 ("WMT",  "Walmart",    "Retail, halal consumer goods")],
+        "PM":   [("WMT",  "Walmart",    "Retail, halal consumer goods")],
+        "BUD":  [("PEP",  "PepsiCo",   "Beverages without alcohol")],
+        "LVS":  [("ABNB", "Airbnb",    "Halal hospitality and travel")],
+        "MGM":  [("ABNB", "Airbnb",    "Halal hospitality and travel")],
+        "LMT":  [("HON",  "Honeywell", "Industrial tech, minimal weapons exposure")],
+        "RTX":  [("HON",  "Honeywell", "Industrial tech, minimal weapons exposure")],
+    }
 
-    if not alternatives:
-        # Fallback: busca por setor se não há mapeamento direto
-        original = _build_company(ticker)
-        if original:
-            sector = original.get("sector", "")
-            alternatives = db.query(HalalAlternative).filter(
-                HalalAlternative.sector == sector
-            ).limit(3).all()
-
+    alts = STATIC_ALTERNATIVES.get(ticker, [])
     results = []
-    for alt in alternatives:
+
+    for alt_ticker, alt_name, reason in alts:
         try:
-            data = _build_company(alt.alt_ticker)
-            if data and data["status"] in ["HALAL", "QUESTIONABLE"]:
+            data = _build_company(alt_ticker)
+            if data:
                 results.append({
-                    "ticker":   alt.alt_ticker,
-                    "name":     alt.alt_name,
-                    "reason":   alt.reason,
-                    "sector":   alt.sector,
-                    "price":    data.get("price"),
-                    "status":   data["status"],
-                    "score":    data.get("investment_score"),
-                    "grade":    data.get("grade"),
-                    "upside":   data.get("fair_value", {}).get("upside_pct"),
+                    "ticker": alt_ticker,
+                    "name":   alt_name,
+                    "reason": reason,
+                    "sector": data.get("sector", ""),
+                    "price":  data.get("price"),
+                    "status": data["status"],
+                    "score":  data.get("investment_score"),
+                    "grade":  data.get("grade"),
+                    "upside": data.get("fair_value", {}).get("upside_pct"),
                 })
         except Exception:
             continue
+
+    return {
+        "ticker": ticker,
+        "total": len(results),
+        "alternatives": results,
+    }
 
     return {
         "ticker": ticker,
