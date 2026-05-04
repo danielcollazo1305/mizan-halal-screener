@@ -72,6 +72,117 @@ const SectionTitle = ({ children }) => (
     {children}
   </div>
 )
+function RiskPanel({ userId }) {
+  const [risk, setRisk] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    axios.get(`${API}/portfolio/${userId}/risk`)
+      .then(res => setRisk(res.data))
+      .catch(() => setRisk(null))
+      .finally(() => setLoading(false))
+  }, [userId])
+
+  if (loading) return null
+  if (!risk || !risk.alerts) return null
+
+  const SEVERITY_COLOR = {
+    CRITICAL: "#ef4444",
+    WARNING: "#f59e0b",
+    INFO: "#3b82f6",
+  }
+
+  return (
+    <div style={{ marginTop: 16 }}>
+
+      {/* Alerts */}
+      {risk.alerts.length > 0 && (
+        <Card style={{ marginBottom: 14 }}>
+          <SectionTitle>⚠️ Portfolio Alerts</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {risk.alerts.map((alert, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 12,
+                background: C.card2, borderRadius: 10, padding: "12px 16px",
+                borderLeft: `3px solid ${SEVERITY_COLOR[alert.severity] || C.muted}`
+              }}>
+                <span style={{ fontSize: 18 }}>
+                  {alert.severity === "CRITICAL" ? "🚫" : alert.severity === "WARNING" ? "⚠️" : "ℹ️"}
+                </span>
+                <div>
+                  {alert.ticker && (
+                    <span style={{ fontWeight: 700, color: "#f1f5f9", marginRight: 8 }}>
+                      {alert.ticker}
+                    </span>
+                  )}
+                  <span style={{ color: C.muted2, fontSize: 13 }}>{alert.message}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Rebalance */}
+      {risk.rebalance_suggestions?.length > 0 && (
+        <Card style={{ marginBottom: 14 }}>
+          <SectionTitle>⚖️ Rebalancing Suggestions</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {risk.rebalance_suggestions.map((r, i) => (
+              <div key={i} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                background: C.card2, borderRadius: 10, padding: "12px 16px"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontWeight: 700, color: "#f1f5f9" }}>{r.ticker}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                    background: r.action === "REDUCE" ? "#450a0a" : "#064e3b",
+                    color: r.action === "REDUCE" ? "#ef4444" : "#22c55e"
+                  }}>
+                    {r.action}
+                  </span>
+                </div>
+                <div style={{ textAlign: "right", fontSize: 13, color: C.muted2 }}>
+                  {r.current_pct}% → <strong style={{ color: "#f1f5f9" }}>{r.target_pct}%</strong>
+                  <span style={{ marginLeft: 8, color: r.action === "REDUCE" ? "#ef4444" : "#22c55e" }}>
+                    ({r.action === "REDUCE" ? "-" : "+"}{r.diff}%)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Diversification Score */}
+      <Card>
+        <SectionTitle>🌍 Diversification Score</SectionTitle>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ fontSize: 42, fontWeight: 800, color: risk.diversification_score >= 60 ? "#22c55e" : "#f59e0b" }}>
+            {risk.diversification_score}
+          </div>
+          <div>
+            <div style={{ color: C.muted2, fontSize: 13, marginBottom: 8 }}>
+              {risk.diversification_score >= 80 ? "🟢 Well diversified" :
+               risk.diversification_score >= 60 ? "🟡 Moderately diversified" :
+               "🔴 Needs more diversification"}
+            </div>
+            <div style={{ height: 8, width: 200, background: C.border, borderRadius: 4 }}>
+              <div style={{
+                height: "100%",
+                width: `${risk.diversification_score}%`,
+                background: risk.diversification_score >= 60 ? "#22c55e" : "#f59e0b",
+                borderRadius: 4
+              }} />
+            </div>
+          </div>
+        </div>
+      </Card>
+
+    </div>
+  )
+}
 
 export default function Portfolio() {
   const [portfolio, setPortfolio]   = useState([])
