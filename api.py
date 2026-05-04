@@ -22,12 +22,10 @@ from app.database import get_db, Portfolio, Watchlist, PortfolioSnapshot, User, 
 from app.auth import hash_password, verify_password, create_access_token, decode_token
 from app.alerts import check_alerts
 from app.recommendations import get_monthly_recommendations
-from app.fmp_data import
-(
+from app.fmp_data import (
     get_company_profile, get_income_statement,
     get_key_metrics, get_dividends, get_balance_sheet
 )
-
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 create_tables()
