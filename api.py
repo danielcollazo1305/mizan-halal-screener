@@ -6,6 +6,7 @@ Mizan Halal Screener — REST API built with FastAPI.
 
 import time
 import logging
+import os
 import stripe
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query, Depends, Request
