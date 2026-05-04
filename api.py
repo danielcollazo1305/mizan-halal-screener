@@ -1083,3 +1083,67 @@ def get_basket_detail(basket_id: str):
         "halal_count": halal_count,
         "stocks": sorted(stocks, key=lambda x: x["score"], reverse=True),
     }
+
+# ── Stripe Payments ───────────────────────────────────────────────────────────
+
+import stripe
+
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+
+STRIPE_PRICES = {
+    "monthly":  price_1TT9um2MhVyyYbTcRpqa72yI
+
+    "yearly":   price_1TT9x42MhVyyYbTcur7X04tI
+}
+
+FRONTEND_URL = "https://mizan-web-omega.vercel.app"
+
+class CheckoutRequest(BaseModel):
+    user_id: int
+    plan: str  # "monthly" ou "yearly"
+
+@app.post("/create-checkout-session", tags=["Payments"])
+def create_checkout_session(request: CheckoutRequest, db: Session = Depends(get_db)):
+    price_id = STRIPE_PRICES.get(request.plan)
+    if not price_id:
+        raise HTTPException(status_code=400, detail="Invalid plan.")
+
+    user = db.query(User).filter(User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",
+            customer_email=user.email,
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{FRONTEND_URL}?upgrade=success",
+            cancel_url=f"{FRONTEND_URL}?upgrade=cancelled",
+            metadata={"user_id": str(request.user_id)},
+        )
+        return {"checkout_url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/webhook/stripe", tags=["Payments"])
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid webhook.")
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = int(session["metadata"].get("user_id", 0))
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.is_premium = True
+            db.commit()
+
+    return {"status": "ok"}
