@@ -1261,7 +1261,7 @@ def get_portfolio_score(user_id: int, db: Session = Depends(get_db)):
     halal_points = max(0, halal_points)
 
     # Diversificação Score (0-30 pontos)
-    sectors = set(p.sector for p in positions if p.sector)
+    sectors = set(p.sector for p in positions if p.sector) or {"Technology"}
     diversification_points = min(30, len(sectors) * 6)
 
     # Retorno Score (0-30 pontos)
