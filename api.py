@@ -1240,3 +1240,79 @@ def get_portfolio_risk(user_id: int, db: Session = Depends(get_db)):
         "rebalance_suggestions": rebalance,
         "diversification_score": min(100, len(sector_map) * 20),
     }
+# ── Portfolio Score ───────────────────────────────────────────────────────────
+
+@app.get("/portfolio/{user_id}/score", tags=["Portfolio"])
+def get_portfolio_score(user_id: int, db: Session = Depends(get_db)):
+    """
+    Score geral do portfolio de A+ a F baseado em halal, diversificação e retorno.
+    """
+    positions = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
+    if not positions:
+        return {"user_id": user_id, "score": None}
+
+    # Halal Score (0-40 pontos)
+    halal_count = sum(1 for p in positions if p.halal_status == "HALAL")
+    haram_count = sum(1 for p in positions if p.halal_status == "HARAM")
+    halal_pct = halal_count / len(positions) * 100
+    halal_points = (halal_pct / 100) * 40
+    # Penalização por HARAM
+    halal_points -= haram_count * 5
+    halal_points = max(0, halal_points)
+
+    # Diversificação Score (0-30 pontos)
+    sectors = set(p.sector for p in positions if p.sector)
+    diversification_points = min(30, len(sectors) * 6)
+
+    # Retorno Score (0-30 pontos)
+    total_invested = sum(p.buy_price * p.shares for p in positions if p.buy_price)
+    total_value = sum((p.current_price or p.buy_price) * p.shares for p in positions)
+    return_pct = ((total_value - total_invested) / total_invested * 100) if total_invested > 0 else 0
+
+    if return_pct >= 20:
+        return_points = 30
+    elif return_pct >= 10:
+        return_points = 22
+    elif return_pct >= 0:
+        return_points = 15
+    elif return_pct >= -10:
+        return_points = 8
+    else:
+        return_points = 0
+
+    total_score = halal_points + diversification_points + return_points
+
+    # Grade
+    if total_score >= 90:
+        grade = "A+"
+    elif total_score >= 80:
+        grade = "A"
+    elif total_score >= 70:
+        grade = "B+"
+    elif total_score >= 60:
+        grade = "B"
+    elif total_score >= 50:
+        grade = "C+"
+    elif total_score >= 40:
+        grade = "C"
+    elif total_score >= 30:
+        grade = "D"
+    else:
+        grade = "F"
+
+    return {
+        "user_id": user_id,
+        "total_score": round(total_score, 1),
+        "grade": grade,
+        "breakdown": {
+            "halal": round(halal_points, 1),
+            "diversification": round(diversification_points, 1),
+            "return": round(return_points, 1),
+        },
+        "details": {
+            "halal_pct": round(halal_pct, 1),
+            "sectors": len(sectors),
+            "return_pct": round(return_pct, 1),
+            "total_value": round(total_value, 2),
+        }
+    }
