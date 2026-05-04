@@ -1147,3 +1147,96 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             db.commit()
 
     return {"status": "ok"}
+
+# ── Portfolio Advanced — Risk & Diversification ───────────────────────────────
+
+@app.get("/portfolio/{user_id}/risk", tags=["Portfolio"])
+def get_portfolio_risk(user_id: int, db: Session = Depends(get_db)):
+    """
+    Análise de risco do portfolio — volatilidade, diversificação, alertas.
+    """
+    positions = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
+    if not positions:
+        return {"user_id": user_id, "risk": None, "alerts": []}
+
+    total_value = sum(p.current_price * p.shares for p in positions if p.current_price)
+    alerts = []
+    positions_data = []
+
+    for p in positions:
+        if not p.current_price:
+            continue
+        value = p.current_price * p.shares
+        allocation = (value / total_value * 100) if total_value > 0 else 0
+
+        # Alerta de concentração
+        if allocation > 20:
+            alerts.append({
+                "type": "CONCENTRATION",
+                "severity": "WARNING",
+                "ticker": p.ticker,
+                "message": f"{p.ticker} represents {allocation:.1f}% of your portfolio — consider reducing to below 20%",
+            })
+
+        # Alerta de posição HARAM
+        if p.halal_status == "HARAM":
+            alerts.append({
+                "type": "COMPLIANCE",
+                "severity": "CRITICAL",
+                "ticker": p.ticker,
+                "message": f"{p.ticker} is classified as HARAM — consider replacing with a halal alternative",
+            })
+
+        positions_data.append({
+            "ticker": p.ticker,
+            "allocation": round(allocation, 1),
+            "value": round(value, 2),
+            "shares": p.shares,
+            "halal_status": p.halal_status,
+        })
+
+    # Diversificação por sector
+    sector_map = {}
+    for p in positions:
+        sector = p.sector or "Unknown"
+        value = (p.current_price or 0) * p.shares
+        sector_map[sector] = sector_map.get(sector, 0) + value
+
+    sector_allocation = [
+        {"sector": k, "value": round(v, 2), "pct": round(v / total_value * 100, 1)}
+        for k, v in sector_map.items()
+    ]
+
+    # Alerta de falta de diversificação
+    if len(sector_map) < 3:
+        alerts.append({
+            "type": "DIVERSIFICATION",
+            "severity": "INFO",
+            "ticker": None,
+            "message": f"Your portfolio only covers {len(sector_map)} sector(s) — consider diversifying across more sectors",
+        })
+
+    # Rebalanceamento sugerido
+    rebalance = []
+    target_pct = 100 / len(positions_data) if positions_data else 0
+    for p in positions_data:
+        diff = p["allocation"] - target_pct
+        if abs(diff) > 5:
+            action = "REDUCE" if diff > 0 else "INCREASE"
+            rebalance.append({
+                "ticker": p["ticker"],
+                "current_pct": p["allocation"],
+                "target_pct": round(target_pct, 1),
+                "action": action,
+                "diff": round(abs(diff), 1),
+            })
+
+    return {
+        "user_id": user_id,
+        "total_value": round(total_value, 2),
+        "positions": len(positions_data),
+        "alerts": alerts,
+        "sector_allocation": sector_allocation,
+        "rebalance_suggestions": rebalance,
+        "diversification_score": min(100, len(sector_map) * 20),
+    }
