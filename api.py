@@ -1091,10 +1091,9 @@ import stripe
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 STRIPE_PRICES = {
-    "monthly":  price_1TT9um2MhVyyYbTcRpqa72yI
-
-    "yearly":   price_1TT9x42MhVyyYbTcur7X04tI
-}
+    "monthly": "price_1TT9um2MhVyyYbTcRpqa72yI",
+    "yearly":  "price_1TT9x42MhVyyYbTcur7X04tI",
+} 
 
 FRONTEND_URL = "https://mizan-web-omega.vercel.app"
 
