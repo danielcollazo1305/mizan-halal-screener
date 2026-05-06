@@ -8,7 +8,6 @@ import time
 import logging
 import os
 import stripe
-import TickerTape from "./TickerTape"
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
