@@ -72,6 +72,44 @@ const SectionTitle = ({ children }) => (
     {children}
   </div>
 )
+
+function PortfolioScore({ positions, summary }) {
+  if (!positions || positions.length === 0) return null
+  const halal = positions.filter(p => p.halal_status === "HALAL").length
+  const haram = positions.filter(p => p.halal_status === "HARAM").length
+  const halalPoints = Math.max(0, ((halal / positions.length) * 40) - haram * 5)
+  const sectors = new Set(positions.map(p => p.sector).filter(Boolean))
+  const divPoints = Math.min(30, sectors.size * 6) || 10
+  const returnPct = summary?.return_pct || 0
+  const returnPoints = returnPct >= 20 ? 30 : returnPct >= 10 ? 22 : returnPct >= 0 ? 15 : returnPct >= -10 ? 8 : 0
+  const total = halalPoints + divPoints + returnPoints
+  const grade = total >= 90 ? "A+" : total >= 80 ? "A" : total >= 70 ? "B+" : total >= 60 ? "B" : total >= 50 ? "C+" : total >= 40 ? "C" : total >= 30 ? "D" : "F"
+  const GRADE_COLOR = { "A+": "#22c55e", "A": "#22c55e", "B+": "#84cc16", "B": "#84cc16", "C+": "#f59e0b", "C": "#f59e0b", "D": "#ef4444", "F": "#ef4444" }
+  const color = GRADE_COLOR[grade] || "#94a3b8"
+  return (
+    <Card style={{ marginBottom: 14 }}>
+      <SectionTitle>🏆 Portfolio Grade</SectionTitle>
+      <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <div style={{ width: 80, height: 80, borderRadius: "50%", background: `${color}22`, border: `3px solid ${color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color }}>{grade}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+            {[{ label: "Halal", value: Math.round(halalPoints), max: 40 }, { label: "Diversification", value: Math.round(divPoints), max: 30 }, { label: "Return", value: Math.round(returnPoints), max: 30 }].map(item => (
+              <div key={item.label} style={{ flex: 1, background: C.card2, borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>{item.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9" }}>{item.value}<span style={{ fontSize: 11, color: C.muted }}>/{item.max}</span></div>
+              </div>
+            ))}
+          </div>
+          <div style={{ height: 6, background: C.border, borderRadius: 3 }}>
+            <div style={{ height: "100%", width: `${total}%`, background: color, borderRadius: 3 }} />
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Total: {Math.round(total)}/100</div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 function RiskPanel({ userId }) {
   const [risk, setRisk] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -94,8 +132,6 @@ function RiskPanel({ userId }) {
 
   return (
     <div style={{ marginTop: 16 }}>
-
-      {/* Alerts */}
       {risk.alerts.length > 0 && (
         <Card style={{ marginBottom: 14 }}>
           <SectionTitle>⚠️ Portfolio Alerts</SectionTitle>
@@ -111,9 +147,7 @@ function RiskPanel({ userId }) {
                 </span>
                 <div>
                   {alert.ticker && (
-                    <span style={{ fontWeight: 700, color: "#f1f5f9", marginRight: 8 }}>
-                      {alert.ticker}
-                    </span>
+                    <span style={{ fontWeight: 700, color: "#f1f5f9", marginRight: 8 }}>{alert.ticker}</span>
                   )}
                   <span style={{ color: C.muted2, fontSize: 13 }}>{alert.message}</span>
                 </div>
@@ -123,7 +157,6 @@ function RiskPanel({ userId }) {
         </Card>
       )}
 
-      {/* Rebalance */}
       {risk.rebalance_suggestions?.length > 0 && (
         <Card style={{ marginBottom: 14 }}>
           <SectionTitle>⚖️ Rebalancing Suggestions</SectionTitle>
@@ -139,9 +172,7 @@ function RiskPanel({ userId }) {
                     fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
                     background: r.action === "REDUCE" ? "#450a0a" : "#064e3b",
                     color: r.action === "REDUCE" ? "#ef4444" : "#22c55e"
-                  }}>
-                    {r.action}
-                  </span>
+                  }}>{r.action}</span>
                 </div>
                 <div style={{ textAlign: "right", fontSize: 13, color: C.muted2 }}>
                   {r.current_pct}% → <strong style={{ color: "#f1f5f9" }}>{r.target_pct}%</strong>
@@ -155,7 +186,6 @@ function RiskPanel({ userId }) {
         </Card>
       )}
 
-      {/* Diversification Score */}
       <Card>
         <SectionTitle>🌍 Diversification Score</SectionTitle>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -170,8 +200,7 @@ function RiskPanel({ userId }) {
             </div>
             <div style={{ height: 8, width: 200, background: C.border, borderRadius: 4 }}>
               <div style={{
-                height: "100%",
-                width: `${risk.diversification_score}%`,
+                height: "100%", width: `${risk.diversification_score}%`,
                 background: risk.diversification_score >= 60 ? "#22c55e" : "#f59e0b",
                 borderRadius: 4
               }} />
@@ -179,7 +208,6 @@ function RiskPanel({ userId }) {
           </div>
         </div>
       </Card>
-
     </div>
   )
 }
@@ -259,7 +287,6 @@ export default function Portfolio() {
     }
   }
 
-  // Sector allocation for donut chart
   const sectorMap = {}
   portfolio.forEach(item => {
     const sector = item.sector || "Other"
@@ -267,11 +294,9 @@ export default function Portfolio() {
   })
   const sectorData = Object.entries(sectorMap).map(([name, value]) => ({ name, value: Math.round(value) }))
 
-  // Halal score
   const halalCount = portfolio.filter(i => i.halal_status === "HALAL").length
   const halalScore = portfolio.length > 0 ? Math.round((halalCount / portfolio.length) * 100) : 0
 
-  // Monthly return (approximate from evolution)
   const monthlyReturn = evolution.length >= 2
     ? ((evolution[evolution.length - 1]?.total_value - evolution[0]?.total_value) / evolution[0]?.total_value * 100)
     : null
@@ -313,7 +338,8 @@ export default function Portfolio() {
       {message && (
         <div style={{ padding: "10px 16px", borderRadius: 10, marginBottom: 16, fontSize: 13,
           background: message.includes("✅") ? "#064e3b" : "#450a0a",
-          color: message.includes("✅") ? C.green : C.red, border: `1px solid ${message.includes("✅") ? C.green : C.red}` }}>
+          color: message.includes("✅") ? C.green : C.red,
+          border: `1px solid ${message.includes("✅") ? C.green : C.red}` }}>
           {message}
         </div>
       )}
@@ -343,10 +369,10 @@ export default function Portfolio() {
       {summary && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
           {[
-            { label: "Total Value",      value: fmt(summary.total_value),    sub: `${summary.positions} positions` },
-            { label: "Total Invested",   value: fmt(summary.total_invested),  sub: "Cost basis" },
-            { label: "Total Return",     value: fmtPct(summary.return_pct),   color: summary.return_pct >= 0 ? C.green : C.red, sub: fmt(summary.gain_loss) },
-            { label: "Monthly Return",   value: monthlyReturn != null ? fmtPct(monthlyReturn) : "N/A", color: monthlyReturn >= 0 ? C.green : C.red, sub: "Based on snapshots" },
+            { label: "Total Value",    value: fmt(summary.total_value),   sub: `${summary.positions} positions` },
+            { label: "Total Invested", value: fmt(summary.total_invested), sub: "Cost basis" },
+            { label: "Total Return",   value: fmtPct(summary.return_pct),  color: summary.return_pct >= 0 ? C.green : C.red, sub: fmt(summary.gain_loss) },
+            { label: "Monthly Return", value: monthlyReturn != null ? fmtPct(monthlyReturn) : "N/A", color: monthlyReturn >= 0 ? C.green : C.red, sub: "Based on snapshots" },
           ].map(item => (
             <Card key={item.label} style={{ padding: 20 }}>
               <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{item.label}</div>
@@ -359,8 +385,6 @@ export default function Portfolio() {
 
       {/* ── Charts Row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
-
-        {/* Donut Chart */}
         <Card>
           <SectionTitle>Allocation by Sector</SectionTitle>
           {sectorData.length > 0 ? (
@@ -371,24 +395,15 @@ export default function Portfolio() {
                     <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8 }}
-                  formatter={(v) => [fmt(v), "Value"]}
-                />
-                <Legend
-                  layout="vertical" align="right" verticalAlign="middle"
-                  formatter={(value) => <span style={{ color: C.muted2, fontSize: 12 }}>{value}</span>}
-                />
+                <Tooltip contentStyle={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8 }} formatter={(v) => [fmt(v), "Value"]} />
+                <Legend layout="vertical" align="right" verticalAlign="middle" formatter={(value) => <span style={{ color: C.muted2, fontSize: 12 }}>{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted }}>
-              No data yet
-            </div>
+            <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted }}>No data yet</div>
           )}
         </Card>
 
-        {/* Halal Score */}
         <Card>
           <SectionTitle>Halal Compliance Score</SectionTitle>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -407,9 +422,9 @@ export default function Portfolio() {
               </div>
               <div style={{ flex: 1 }}>
                 {[
-                  { label: "Halal assets",    value: `${halalCount}/${portfolio.length}`, color: C.green },
-                  { label: "Questionable",    value: `${portfolio.filter(i => i.halal_status === "QUESTIONABLE").length}`, color: C.amber },
-                  { label: "Non-compliant",   value: `${portfolio.filter(i => i.halal_status === "HARAM").length}`, color: C.red },
+                  { label: "Halal assets",  value: `${halalCount}/${portfolio.length}`, color: C.green },
+                  { label: "Questionable",  value: `${portfolio.filter(i => i.halal_status === "QUESTIONABLE").length}`, color: C.amber },
+                  { label: "Non-compliant", value: `${portfolio.filter(i => i.halal_status === "HARAM").length}`, color: C.red },
                 ].map(item => (
                   <div key={item.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                     <span style={{ fontSize: 13, color: C.muted }}>{item.label}</span>
@@ -418,7 +433,6 @@ export default function Portfolio() {
                 ))}
               </div>
             </div>
-            {/* Progress bar */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                 <span style={{ fontSize: 12, color: C.muted }}>Compliance level</span>
@@ -435,9 +449,7 @@ export default function Portfolio() {
       {/* ── Evolution Chart ── */}
       <Card style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div>
-            <SectionTitle>Portfolio Evolution</SectionTitle>
-          </div>
+          <SectionTitle>Portfolio Evolution</SectionTitle>
           <div style={{ display: "flex", gap: 6 }}>
             {PERIOD_OPTIONS.map(p => (
               <button key={p.value} onClick={() => setPeriod(p.value)} style={{
@@ -455,8 +467,7 @@ export default function Portfolio() {
               <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
               <XAxis dataKey="date" stroke={C.muted} tick={{ fontSize: 11 }} />
               <YAxis stroke={C.muted} tick={{ fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8 }}
-                formatter={(v) => [`$${Number(v).toFixed(2)}`, ""]} />
+              <Tooltip contentStyle={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8 }} formatter={(v) => [`$${Number(v).toFixed(2)}`, ""]} />
               <Line type="monotone" dataKey="total_value" stroke={C.green} strokeWidth={2.5} dot={{ r: 4, fill: C.green }} name="💼 Portfolio" />
               <Line type="monotone" dataKey="total_invested" stroke={C.muted} strokeWidth={1.5} dot={false} strokeDasharray="5 5" name="💰 Invested" />
             </LineChart>
@@ -468,7 +479,6 @@ export default function Portfolio() {
           </div>
         )}
 
-        {/* Benchmarks */}
         {benchmarks && (
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
             <SectionTitle>Benchmarks — 1Y Performance</SectionTitle>
@@ -512,9 +522,7 @@ export default function Portfolio() {
               ) : (
                 portfolio.map(item => {
                   const sc = statusConfig[item.halal_status] || statusConfig.HARAM
-                  const allocation = summary?.total_value > 0
-                    ? ((item.current_value / summary.total_value) * 100).toFixed(1)
-                    : "0"
+                  const allocation = summary?.total_value > 0 ? ((item.current_value / summary.total_value) * 100).toFixed(1) : "0"
                   return (
                     <tr key={item.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: "14px 12px" }}>
@@ -573,7 +581,8 @@ export default function Portfolio() {
       </Card>
 
       {/* ── Risk Analysis ── */}
-<RiskPanel userId={USER_ID} />
+      <PortfolioScore positions={portfolio} summary={summary} />
+      <RiskPanel userId={USER_ID} />
 
       <p style={{ color: C.muted, fontSize: 11, textAlign: "center", marginTop: 20 }}>
         📊 Return based on current market price. Not financial advice. Always do your own research.
