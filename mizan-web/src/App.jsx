@@ -15,6 +15,7 @@ import ComplianceAlerts from "./ComplianceAlerts"
 import HalalAlternatives from "./HalalAlternatives"
 import Baskets from "./Baskets"
 import Pricing from "./Pricing"
+import Markets from "./Markets"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -500,6 +501,7 @@ export default function App() {
           <button style={navStyle("compliance")} onClick={() => setPage("compliance")}>🛡️ Compliance</button>
           <button style={navStyle("baskets")} onClick={() => setPage("baskets")}>🧺 Baskets</button>
           <button style={navStyle("pricing")} onClick={() => setPage("pricing")}>💎 Pro</button>
+          <button style={navStyle("markets")} onClick={() => setPage("markets")}>🌍 Markets</button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ color: "#64748b", fontSize: 13 }}>👤 {user.name}</span>
@@ -530,6 +532,7 @@ export default function App() {
   const data = await res.json()
   if (data.checkout_url) window.location.href = data.checkout_url
 }} />}
+      {page === "markets" && <Markets />}
 
       <div style={{ textAlign: "center", padding: "20px 40px", color: "#475569", fontSize: 12, borderTop: "1px solid #1e293b", marginTop: 40 }}>
         📊 Mizan provides data-driven analysis for informational purposes only. This is not financial advice.
