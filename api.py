@@ -1157,7 +1157,14 @@ def get_portfolio_risk(user_id: int, db: Session = Depends(get_db)):
     """
     positions = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
     if not positions:
-        return {"user_id": user_id, "risk": None, "alerts": []}
+    return {
+        "user_id": user_id,
+        "score": None,
+        "grade": None,
+        "total_score": 0,
+        "breakdown": {"halal": 0, "diversification": 0, "return": 0},
+        "details": {}
+    }
 
     total_value = sum(p.current_price * p.shares for p in positions if p.current_price)
     alerts = []
@@ -1316,3 +1323,76 @@ def get_portfolio_score(user_id: int, db: Session = Depends(get_db)):
             "total_value": round(total_value, 2),
         }
     }
+
+    # ── Markets Dashboard ─────────────────────────────────────────────────────────
+
+@app.get("/markets", tags=["Markets"])
+def get_markets():
+    """
+    Retorna dados em tempo real de índices, forex e commodities.
+    """
+    import yfinance as yf
+
+    INDICES = {
+        "S&P 500":   "^GSPC",
+        "NASDAQ":    "^IXIC",
+        "FTSE 100":  "^FTSE",
+        "DAX":       "^GDAXI",
+        "Nikkei":    "^N225",
+        "Tadawul":   "^TASI.SR",
+        "DJIMI":     "^DJIMI",
+    }
+
+    FOREX = {
+        "USD/EUR":   "EURUSD=X",
+        "USD/GBP":   "GBPUSD=X",
+        "USD/SAR":   "USSAR=X",
+        "USD/MYR":   "MYRX=X",
+        "USD/AED":   "AEDX=X",
+    }
+
+    COMMODITIES = {
+        "Gold":      "GC=F",
+        "Silver":    "SI=F",
+        "Oil (WTI)": "CL=F",
+        "Gas":       "NG=F",
+    }
+
+    def fetch_quote(symbol):
+        try:
+            t = yf.Ticker(symbol)
+            info = t.fast_info
+            price = info.last_price
+            prev  = info.previous_close
+            change_pct = ((price - prev) / prev * 100) if prev else 0
+            return {
+                "price":      round(price, 4) if price else None,
+                "change_pct": round(change_pct, 2) if change_pct else None,
+            }
+        except Exception:
+            return {"price": None, "change_pct": None}
+
+    result = {
+        "indices":    {},
+        "forex":      {},
+        "commodities":{},
+    }
+
+    import concurrent.futures
+
+def fetch_all(items_dict):
+    results = {}
+    def fetch_one(item):
+        name, symbol = item
+        return name, fetch_quote(symbol)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(fetch_one, item): item for item in items_dict.items()}
+        for future in concurrent.futures.as_completed(futures):
+            name, data = future.result()
+            results[name] = data
+    return results
+
+result["indices"]     = fetch_all(INDICES)
+result["forex"]       = fetch_all(FOREX)
+result["commodities"] = fetch_all(COMMODITIES)
+    return result
