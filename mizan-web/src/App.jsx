@@ -16,6 +16,7 @@ import HalalAlternatives from "./HalalAlternatives"
 import Baskets from "./Baskets"
 import Pricing from "./Pricing"
 import Markets from "./Markets"
+import TickerTape from "./TickerTape"
 
 const API = "https://web-production-b5851.up.railway.app"
 
@@ -482,8 +483,9 @@ export default function App() {
   })
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a", color: "#f1f5f9", fontFamily: "sans-serif" }}>
-      <div style={{ borderBottom: "1px solid #1e293b", padding: "16px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  <div style={{ minHeight: "100vh", background: "#0f172a", color: "#f1f5f9", fontFamily: "sans-serif" }}>
+    <TickerTape />
+    <div style={{ borderBottom: "1px solid #1e293b", padding: "16px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <span style={{ fontSize: 22, fontWeight: 700, color: "#22c55e" }}>🕌 Mizan</span>
           <span style={{ color: "#94a3b8", marginLeft: 8, fontSize: 14 }}>Halal Stock Screener</span>
