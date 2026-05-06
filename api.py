@@ -1397,3 +1397,29 @@ def get_markets():
     result["commodities"] = fetch_all(COMMODITIES)
 
     return result
+
+# ── News ──────────────────────────────────────────────────────────────────────
+
+@app.get("/news/{ticker}", tags=["News"])
+def get_ticker_news(ticker: str):
+    """
+    Retorna as últimas notícias para um ticker via yFinance.
+    """
+    import yfinance as yf
+    try:
+        t = yf.Ticker(ticker.upper())
+        news = t.news or []
+        results = []
+        for item in news[:10]:
+            content = item.get("content", {})
+            results.append({
+                "title":      content.get("title", ""),
+                "summary":    content.get("summary", ""),
+                "url":        content.get("canonicalUrl", {}).get("url", ""),
+                "source":     content.get("provider", {}).get("displayName", ""),
+                "published":  content.get("pubDate", ""),
+                "thumbnail":  content.get("thumbnail", {}).get("resolutions", [{}])[0].get("url", "") if content.get("thumbnail") else "",
+            })
+        return {"ticker": ticker.upper(), "total": len(results), "news": results}
+    except Exception as e:
+        return {"ticker": ticker.upper(), "total": 0, "news": [], "error": str(e)}
