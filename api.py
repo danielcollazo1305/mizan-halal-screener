@@ -1157,14 +1157,14 @@ def get_portfolio_risk(user_id: int, db: Session = Depends(get_db)):
     """
     positions = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
     if not positions:
-    return {
-        "user_id": user_id,
-        "score": None,
-        "grade": None,
-        "total_score": 0,
-        "breakdown": {"halal": 0, "diversification": 0, "return": 0},
-        "details": {}
-    }
+        return {
+            "user_id": user_id,
+            "score": None,
+            "grade": None,
+            "total_score": 0,
+            "breakdown": {"halal": 0, "diversification": 0, "return": 0},
+            "details": {}
+        }
 
     total_value = sum(p.current_price * p.shares for p in positions if p.current_price)
     alerts = []
@@ -1380,19 +1380,20 @@ def get_markets():
 
     import concurrent.futures
 
-def fetch_all(items_dict):
-    results = {}
-    def fetch_one(item):
-        name, symbol = item
-        return name, fetch_quote(symbol)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(fetch_one, item): item for item in items_dict.items()}
-        for future in concurrent.futures.as_completed(futures):
-            name, data = future.result()
-            results[name] = data
-    return results
+    def fetch_all(items_dict):
+        results = {}
+        def fetch_one(item):
+            name, symbol = item
+            return name, fetch_quote(symbol)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(fetch_one, item): item for item in items_dict.items()}
+            for future in concurrent.futures.as_completed(futures):
+                name, data = future.result()
+                results[name] = data
+        return results
 
-result["indices"]     = fetch_all(INDICES)
-result["forex"]       = fetch_all(FOREX)
-result["commodities"] = fetch_all(COMMODITIES)
+    result["indices"]     = fetch_all(INDICES)
+    result["forex"]       = fetch_all(FOREX)
+    result["commodities"] = fetch_all(COMMODITIES)
+
     return result
