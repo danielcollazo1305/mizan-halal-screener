@@ -393,7 +393,7 @@ def add_to_watchlist(request: WatchlistAddRequest, db: Session = Depends(get_db)
     data   = get_stock_data(ticker)
     if not data.get("available"):
         raise HTTPException(status_code=404, detail=f"Invalid ticker '{ticker}'.")
-    @app.get("/watchlist/{user_id}", tags=["Watchlist"])
+@app.get("/watchlist/{user_id}", tags=["Watchlist"])
 def get_watchlist(user_id: int, db: Session = Depends(get_db)):
     items = db.query(Watchlist).filter(Watchlist.user_id == user_id).all()
     return [{"id": item.id, "ticker": item.ticker, "target_price": item.target_price} for item in items]
