@@ -3,162 +3,232 @@ import axios from "axios"
 
 const API = "https://web-production-b5851.up.railway.app"
 
-const STATUS_COLOR = {
-  HALAL: "#22c55e",
-  QUESTIONABLE: "#f59e0b",
-  HARAM: "#ef4444",
+const C = {
+  bg:     "#080f0b",
+  card:   "#0C1F17",
+  card2:  "#0a1a10",
+  border: "rgba(255,255,255,0.06)",
+  green:  "#0A7C5C",
+  gold:   "#C9A84C",
+  red:    "#ef4444",
+  amber:  "#f59e0b",
+  text:   "#f0f4f1",
+  muted:  "#5a6a60",
+  muted2: "#7a8a80",
+}
+
+const statusConfig = {
+  HALAL:        { color: "#0A7C5C", bg: "rgba(10,124,92,0.15)",  label: "Halal" },
+  QUESTIONABLE: { color: "#f59e0b", bg: "rgba(245,158,11,0.15)", label: "Questionable" },
+  HARAM:        { color: "#ef4444", bg: "rgba(239,68,68,0.15)",  label: "Haram" },
+}
+
+const BASKETS = [
+  {
+    id: "conservative",
+    name: "Conservative",
+    subtitle: "Stability & Dividends",
+    description: "Blue-chip halal stocks with strong fundamentals, low volatility and consistent dividends. Ideal for capital preservation.",
+    color: "#0A7C5C",
+    audience: "Risk-averse investors",
+    tickers: ["JNJ", "PG", "KO", "PEP", "MCD", "WMT", "COST", "MMM", "ABT", "MRK"],
+  },
+  {
+    id: "growth",
+    name: "Growth",
+    subtitle: "High-Growth Halal",
+    description: "Fast-growing companies with strong revenue momentum, screened for halal compliance. Higher risk, higher reward.",
+    color: "#C9A84C",
+    audience: "Growth investors",
+    tickers: ["NVDA", "MSFT", "GOOGL", "AMZN", "META", "AVGO", "AMD", "ADBE", "CRM", "NOW"],
+  },
+  {
+    id: "dividend",
+    name: "Dividend",
+    subtitle: "Income Focused",
+    description: "Halal stocks with above-average dividend yields, suitable for passive income generation and long-term wealth building.",
+    color: "#f59e0b",
+    audience: "Income investors",
+    tickers: ["V", "MA", "ABBV", "CVX", "NEE", "TXN", "QCOM", "HON", "RTX", "UPS"],
+  },
+  {
+    id: "emerging",
+    name: "Emerging Markets",
+    subtitle: "Global Halal",
+    description: "Halal-compliant stocks from GCC and emerging markets. Diversify beyond the US with Shariah-screened companies.",
+    color: "#0A7C5C",
+    audience: "Global diversification",
+    tickers: ["2222.SR", "4002.SR", "3030.SR", "2290.SR", "EMAAR.AE", "ALDAR.AE", "TAQA.AE", "AIR.PA", "SAP.DE", "AZN.L"],
+  },
+  {
+    id: "tech",
+    name: "Tech Halal",
+    subtitle: "Pure Technology",
+    description: "Technology leaders screened for halal compliance. Focused on semiconductors, software, and cloud infrastructure.",
+    color: "#C9A84C",
+    audience: "Tech investors",
+    tickers: ["AAPL", "MSFT", "NVDA", "AMD", "QCOM", "TXN", "AMAT", "LRCX", "KLAC", "MRVL"],
+  },
+]
+
+function BasketDetail({ basket, onClose }) {
+  const [stocks, setStocks]   = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    setStocks([])
+    Promise.all(
+      basket.tickers.map(ticker =>
+        axios.get(`${API}/analyze?ticker=${ticker}`, { timeout: 30000 })
+          .then(r => ({ ticker, ...r.data }))
+          .catch(() => ({ ticker, status: null, price: null, grade: null, name: ticker }))
+      )
+    ).then(results => {
+      setStocks(results)
+      setLoading(false)
+    })
+  }, [basket.id])
+
+  const halalCount = stocks.filter(s => s.status === "HALAL").length
+  const avgUpside  = stocks.length > 0
+    ? stocks.filter(s => s.fair_value?.upside_pct != null).reduce((acc, s, _, arr) => acc + s.fair_value.upside_pct / arr.length, 0)
+    : 0
+
+  return (
+    <div style={{ background: C.card2, borderRadius: 12, padding: 24, marginTop: 2, borderTop: `2px solid ${basket.color}` }}>
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "32px 0", color: C.muted }}>
+          <div style={{ fontSize: 13, marginBottom: 8 }}>Analysing {basket.tickers.length} stocks...</div>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
+            {basket.tickers.map(t => (
+              <span key={t} style={{ fontSize: 11, color: C.muted2, background: C.card, padding: "3px 8px", borderRadius: 4 }}>{t}</span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Summary */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+            {[
+              { label: "Total",      value: basket.tickers.length, color: C.text },
+              { label: "Halal",      value: halalCount,            color: C.green },
+              { label: "Halal Rate", value: `${Math.round((halalCount / stocks.length) * 100)}%`, color: C.green },
+              { label: "Avg Upside", value: `${avgUpside > 0 ? "+" : ""}${avgUpside.toFixed(1)}%`, color: avgUpside > 0 ? C.green : C.red },
+            ].map(item => (
+              <div key={item.label} style={{ flex: 1, background: C.card, borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: item.color }}>{item.value}</div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 3, textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Table header */}
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8, padding: "4px 14px", marginBottom: 6 }}>
+            {["Stock", "Price", "Status", "Grade", "Upside"].map(h => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", textAlign: h === "Stock" ? "left" : "right" }}>{h}</div>
+            ))}
+          </div>
+
+          {/* Rows */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {stocks.map((s, i) => {
+              const sc     = statusConfig[s.status] || null
+              const upside = s.fair_value?.upside_pct
+              return (
+                <div key={i} style={{
+                  display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8,
+                  background: C.card, borderRadius: 8, padding: "10px 14px",
+                  borderLeft: `3px solid ${sc?.color || C.border}`,
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: C.text, fontSize: 13 }}>{s.ticker}</div>
+                    <div style={{ fontSize: 11, color: C.muted2 }}>{s.name?.slice(0, 22) || "—"}</div>
+                  </div>
+                  <div style={{ textAlign: "right", fontWeight: 700, color: C.text, fontSize: 13, alignSelf: "center" }}>
+                    {s.price ? `$${s.price.toFixed(2)}` : "—"}
+                  </div>
+                  <div style={{ textAlign: "right", alignSelf: "center" }}>
+                    {sc && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: sc.bg, color: sc.color }}>{sc.label}</span>}
+                  </div>
+                  <div style={{ textAlign: "right", fontWeight: 700, color: C.green, fontSize: 13, alignSelf: "center" }}>
+                    {s.grade || "—"}
+                  </div>
+                  <div style={{ textAlign: "right", fontWeight: 600, fontSize: 13, alignSelf: "center", color: upside > 0 ? C.green : upside < 0 ? C.red : C.muted }}>
+                    {upside != null ? `${upside > 0 ? "+" : ""}${upside.toFixed(1)}%` : "—"}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div style={{ textAlign: "center", marginTop: 16, fontSize: 11, color: C.muted }}>
+            Halal classification based on sector, debt ratio and revenue screening. Not financial advice.
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 export default function Baskets() {
-  const [baskets, setBaskets] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [detail, setDetail] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [loadingDetail, setLoadingDetail] = useState(false)
-
-  useEffect(() => {
-    axios.get(`${API}/baskets`)
-      .then(res => setBaskets(res.data.baskets || []))
-      .catch(() => setBaskets([]))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const openBasket = async (basket) => {
-    setSelected(basket)
-    setDetail(null)
-    setLoadingDetail(true)
-    try {
-      const res = await axios.get(`${API}/baskets/${basket.id}`, { timeout: 60000 })
-      setDetail(res.data)
-    } catch {
-      setDetail(null)
-    } finally {
-      setLoadingDetail(false)
-    }
-  }
+  const [openId, setOpenId] = useState(null)
 
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto", padding: "40px 20px" }}>
-
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 24px" }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ margin: 0, fontSize: 22, color: "#f1f5f9" }}>
-          🧺 Halal Baskets
-        </h2>
-        <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: 13 }}>
-          Curated collections of halal stocks by theme — ready to invest.
-        </p>
+        <div style={{ fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 6 }}>Halal Baskets</div>
+        <div style={{ fontSize: 13, color: C.muted2 }}>Curated Shariah-compliant portfolios for every investor profile.</div>
+        <div style={{ display: "inline-block", marginTop: 10, padding: "3px 12px", borderRadius: 20, background: "rgba(201,168,76,0.1)", border: "1px solid #C9A84C44", fontSize: 11, fontWeight: 700, color: C.gold }}>Premium Feature</div>
       </div>
 
-      {/* Basket Grid */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
-          ⏳ Loading baskets...
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 32 }}>
-          {baskets.map(basket => (
-            <div
-              key={basket.id}
-              onClick={() => openBasket(basket)}
-              style={{
-                background: selected?.id === basket.id ? "#1e3a2e" : "#1e293b",
-                borderRadius: 12, padding: "18px 20px",
+      {/* List */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {BASKETS.map(b => {
+          const isOpen = openId === b.id
+          return (
+            <div key={b.id}>
+              {/* Row */}
+              <div onClick={() => setOpenId(isOpen ? null : b.id)} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: isOpen ? C.card : C.card2,
+                borderRadius: isOpen ? "10px 10px 0 0" : 10,
+                padding: "18px 22px",
                 cursor: "pointer",
-                border: selected?.id === basket.id ? "1px solid #0A7C5C" : "1px solid transparent",
-                transition: "all 0.2s",
+                border: `0.5px solid ${isOpen ? b.color : C.border}`,
+                borderBottom: isOpen ? "none" : `0.5px solid ${C.border}`,
+                transition: "all 0.15s",
               }}
-            >
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{basket.emoji}</div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9", marginBottom: 4 }}>
-                {basket.name}
-              </div>
-              <div style={{ color: "#64748b", fontSize: 12, marginBottom: 12 }}>
-                {basket.description}
-              </div>
-              <div style={{ color: "#0A7C5C", fontSize: 12, fontWeight: 600 }}>
-                {basket.ticker_count} stocks →
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Basket Detail */}
-      {selected && (
-        <div style={{ background: "#1e293b", borderRadius: 12, padding: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <span style={{ fontSize: 28 }}>{selected.emoji}</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 18, color: "#f1f5f9" }}>{selected.name}</div>
-              <div style={{ color: "#64748b", fontSize: 13 }}>{selected.description}</div>
-            </div>
-          </div>
-
-          {loadingDetail ? (
-            <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
-              ⏳ Analysing {selected.ticker_count} stocks... this may take up to 30 seconds.
-            </div>
-          ) : detail ? (
-            <>
-              {/* Summary */}
-              <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-                <div style={{ flex: 1, background: "#0f172a", borderRadius: 8, padding: "12px 16px", textAlign: "center" }}>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: "#22c55e" }}>{detail.halal_count}</div>
-                  <div style={{ color: "#64748b", fontSize: 11 }}>Halal stocks</div>
-                </div>
-                <div style={{ flex: 1, background: "#0f172a", borderRadius: 8, padding: "12px 16px", textAlign: "center" }}>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: "#f1f5f9" }}>{detail.total}</div>
-                  <div style={{ color: "#64748b", fontSize: 11 }}>Total stocks</div>
-                </div>
-                <div style={{ flex: 1, background: "#0f172a", borderRadius: 8, padding: "12px 16px", textAlign: "center" }}>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: "#C9A84C" }}>
-                    {Math.round((detail.halal_count / detail.total) * 100)}%
-                  </div>
-                  <div style={{ color: "#64748b", fontSize: 11 }}>Halal rate</div>
-                </div>
-              </div>
-
-              {/* Stock list */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {detail.stocks.map((stock, i) => (
-                  <div key={i} style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    background: "#0f172a", borderRadius: 8, padding: "12px 16px",
-                    borderLeft: `3px solid ${STATUS_COLOR[stock.status] || "#475569"}`
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div>
-                        <span style={{ fontWeight: 700, color: "#f1f5f9" }}>{stock.ticker}</span>
-                        <span style={{ color: "#64748b", fontSize: 12, marginLeft: 8 }}>{stock.name}</span>
-                      </div>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
-                        background: `${STATUS_COLOR[stock.status]}22`,
-                        color: STATUS_COLOR[stock.status]
-                      }}>
-                        {stock.status}
-                      </span>
+              onMouseEnter={e => { if (!isOpen) e.currentTarget.style.borderColor = b.color }}
+              onMouseLeave={e => { if (!isOpen) e.currentTarget.style.borderColor = C.border }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 20, flex: 1 }}>
+                  <div style={{ width: 4, height: 40, borderRadius: 2, background: b.color, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{b.name}</div>
+                      <div style={{ fontSize: 11, color: b.color, fontWeight: 600 }}>{b.subtitle}</div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ color: "#f1f5f9", fontWeight: 600 }}>
-                        {stock.price ? `$${stock.price.toFixed(2)}` : "N/A"}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#64748b" }}>
-                        Grade: {stock.grade} · Score: {stock.score}
-                      </div>
-                    </div>
+                    <div style={{ fontSize: 12, color: C.muted2, marginTop: 3 }}>{b.description}</div>
                   </div>
-                ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0, marginLeft: 16 }}>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{b.tickers.length} stocks</div>
+                    <div style={{ fontSize: 10, color: C.muted }}>{b.audience}</div>
+                  </div>
+                  <div style={{ padding: "3px 10px", borderRadius: 20, background: "rgba(201,168,76,0.1)", border: "1px solid #C9A84C44", fontSize: 10, fontWeight: 700, color: C.gold }}>PREMIUM</div>
+                  <div style={{ color: C.muted2, fontSize: 18, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▾</div>
+                </div>
               </div>
-            </>
-          ) : (
-            <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
-              Failed to load basket detail. Try again.
+
+              {/* Detail */}
+              {isOpen && <BasketDetail basket={b} onClose={() => setOpenId(null)} />}
             </div>
-          )}
-        </div>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 }
